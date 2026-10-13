@@ -201,15 +201,27 @@ public struct CreateGymMembershipLinkRequest: Encodable, Sendable {
 public struct MachineTypeDTO: Codable, Sendable, Identifiable, Hashable {
     public let id: Int
     public let name: String
+    public let description: String?
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
         id = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("id")) ?? 0
         name = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("name")) ?? String(id)
+        description = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("description"))
     }
 }
 
 public struct CreateMachineTypeRequest: Encodable, Sendable {
+    public var name: String
+    public var description: String?
+
+    public init(name: String, description: String? = nil) {
+        self.name = name
+        self.description = description
+    }
+}
+
+public struct UpdateMachineTypeRequest: Encodable, Sendable {
     public var name: String
     public var description: String?
 

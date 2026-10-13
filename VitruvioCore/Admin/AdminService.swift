@@ -132,6 +132,10 @@ public struct AdminService: Sendable {
         try await api.post("api/machine-types", body: request)
     }
 
+    public func updateMachineType(id: Int, _ request: UpdateMachineTypeRequest) async throws -> MachineTypeDTO {
+        try await api.put("api/machine-types/\(id)", body: request)
+    }
+
     public func listMachines() async throws -> [MachineDTO] {
         try await api.get("api/machines")
     }

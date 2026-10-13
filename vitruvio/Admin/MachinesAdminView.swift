@@ -10,39 +10,80 @@ struct MachinesAdminView: View {
     @Bindable var admin: AdminWorkspaceModel
     @State private var machines: [MachineDTO] = []
     @State private var types: [MachineTypeDTO] = []
-    @State private var brand = ""
-    @State private var model = ""
-    @State private var typeId: Int?
-    @State private var newTypeName = ""
+    @State private var showCreateType = false
+    @State private var showCreateMachine = false
+    @State private var editingType: MachineTypeDTO?
     @State private var error: String?
+    @State private var status: String?
     @State private var isWorking = false
+
+    private var typeNameById: [Int: String] {
+        Dictionary(uniqueKeysWithValues: types.map { ($0.id, $0.name) })
+    }
 
     var body: some View {
         List {
-            Section("Machine type") {
+            if let status {
+                Section { Text(status).foregroundStyle(.secondary).font(.caption) }
+            }
+            if let error {
+                Section { Text(error).foregroundStyle(.red).font(.caption) }
+            }
+
+            Section("Types") {
                 if types.isEmpty {
-                    TextField("New type name", text: $newTypeName)
-                    Button("Create type") { Task { await createType() } }
-                        .disabled(newTypeName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    ContentUnavailableView(
+                        "No machine types yet",
+                        systemImage: "wrench.and.screwdriver",
+                        description: Text("Tap + → Add type before creating machines.")
+                    )
                 } else {
-                    Picker("Type", selection: $typeId) {
-                        Text("Select").tag(Optional<Int>.none)
-                        ForEach(types) { type in
-                            Text(type.name).tag(Optional(type.id))
+                    ForEach(types) { type in
+                        Button {
+                            editingType = type
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(type.name)
+                                    if let description = type.description, !description.isEmpty {
+                                        Text(description)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Image(systemName: "pencil")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
             }
 
-            Section("Add machine") {
-                TextField("Brand", text: $brand)
-                TextField("Model", text: $model)
-                Button("Create") { Task { await createMachine() } }
-                    .disabled(brand.isEmpty || model.isEmpty || typeId == nil || isWorking)
-            }
-
-            if let error {
-                Section { Text(error).foregroundStyle(.red).font(.caption) }
+            Section("Machines") {
+                if machines.isEmpty {
+                    ContentUnavailableView(
+                        "No machines yet",
+                        systemImage: "dumbbell",
+                        description: Text("Tap + → Add machine.")
+                    )
+                } else {
+                    ForEach(machines) { machine in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(machine.displayName.isEmpty ? machine.id : machine.displayName)
+                            if let typeId = machine.machineTypeId {
+                                Text(typeNameById[typeId] ?? "type \(typeId)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button("Delete", role: .destructive) {
+                                Task { await delete(machine.id) }
+                            }
+                        }
+                    }
+                }
             }
 
             Section {
@@ -50,30 +91,59 @@ struct MachinesAdminView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section("Machines") {
-                if machines.isEmpty {
-                    Text("No machines yet").foregroundStyle(.secondary)
-                }
-                ForEach(machines) { machine in
-                    VStack(alignment: .leading) {
-                        Text(machine.displayName.isEmpty ? machine.id : machine.displayName)
-                        if let typeId = machine.machineTypeId {
-                            Text("type \(typeId)").font(.caption2).foregroundStyle(.tertiary)
-                        }
-                    }
-                    .swipeActions {
-                        Button("Delete", role: .destructive) {
-                            Task { await delete(machine.id) }
-                        }
-                    }
-                }
-            }
         }
         .navigationTitle("Machines")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        showCreateType = true
+                    } label: {
+                        Label("Add type", systemImage: "tag")
+                    }
+                    Button {
+                        showCreateMachine = true
+                    } label: {
+                        Label("Add machine", systemImage: "dumbbell")
+                    }
+                    .disabled(types.isEmpty)
+                } label: {
+                    Label("Add", systemImage: "plus")
+                }
+                .disabled(isWorking)
+            }
+        }
         .overlay { if isWorking { ProgressView() } }
         .task { await reload() }
         .refreshable { await reload() }
+        .sheet(isPresented: $showCreateType) {
+            CreateMachineTypeSheet(service: admin.service) { created in
+                status = "Type “\(created.name)” created."
+                showCreateType = false
+                Task { await reload() }
+            } onCancel: {
+                showCreateType = false
+            }
+        }
+        .sheet(item: $editingType) { type in
+            EditMachineTypeSheet(type: type, service: admin.service) { updated in
+                status = "Type “\(updated.name)” updated."
+                editingType = nil
+                Task { await reload() }
+            } onCancel: {
+                editingType = nil
+            }
+        }
+        .sheet(isPresented: $showCreateMachine) {
+            CreateMachineSheet(service: admin.service, types: types) { created in
+                let label = created.displayName.isEmpty ? created.id : created.displayName
+                status = "Machine “\(label)” created."
+                showCreateMachine = false
+                Task { await reload() }
+            } onCancel: {
+                showCreateMachine = false
+            }
+        }
     }
 
     private func reload() async {
@@ -83,43 +153,7 @@ struct MachinesAdminView: View {
             async let m = admin.service.listMachines()
             async let t = admin.service.listMachineTypes()
             (machines, types) = try await (m, t)
-            if typeId == nil { typeId = types.first?.id }
             error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func createType() async {
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            let created = try await admin.service.createMachineType(
-                CreateMachineTypeRequest(name: newTypeName.trimmingCharacters(in: .whitespacesAndNewlines))
-            )
-            newTypeName = ""
-            typeId = created.id
-            await reload()
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func createMachine() async {
-        guard let typeId else { return }
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            _ = try await admin.service.createMachine(
-                CreateMachineRequest(
-                    machineTypeId: typeId,
-                    brand: brand.trimmingCharacters(in: .whitespacesAndNewlines),
-                    model: model.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
-            )
-            brand = ""
-            model = ""
-            await reload()
         } catch {
             self.error = error.localizedDescription
         }
@@ -128,9 +162,234 @@ struct MachinesAdminView: View {
     private func delete(_ id: String) async {
         do {
             try await admin.service.deleteMachine(id: id)
+            status = "Machine deleted"
+            error = nil
             await reload()
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+private struct CreateMachineTypeSheet: View {
+    let service: AdminService
+    var onCreated: (MachineTypeDTO) -> Void
+    var onCancel: () -> Void
+
+    @State private var name = ""
+    @State private var description = ""
+    @State private var error: String?
+    @State private var isWorking = false
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Machine type") {
+                    TextField("Name", text: $name)
+                    TextField("Description (optional)", text: $description)
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red).font(.caption) }
+                }
+            }
+            .navigationTitle("New type")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") { Task { await create() } }
+                        .disabled(!canSave || isWorking)
+                }
+            }
+            .overlay { if isWorking { ProgressView() } }
+        }
+    }
+
+    private func create() async {
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let created = try await service.createMachineType(
+                CreateMachineTypeRequest(
+                    name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                )
+            )
+            onCreated(created)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+private struct EditMachineTypeSheet: View {
+    let type: MachineTypeDTO
+    let service: AdminService
+    var onSaved: (MachineTypeDTO) -> Void
+    var onCancel: () -> Void
+
+    @State private var name: String
+    @State private var description: String
+    @State private var error: String?
+    @State private var isWorking = false
+
+    init(
+        type: MachineTypeDTO,
+        service: AdminService,
+        onSaved: @escaping (MachineTypeDTO) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.type = type
+        self.service = service
+        self.onSaved = onSaved
+        self.onCancel = onCancel
+        _name = State(initialValue: type.name)
+        _description = State(initialValue: type.description ?? "")
+    }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Machine type") {
+                    TextField("Name", text: $name)
+                    TextField("Description (optional)", text: $description)
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red).font(.caption) }
+                }
+            }
+            .navigationTitle("Edit type")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .disabled(!canSave || isWorking)
+                }
+            }
+            .overlay { if isWorking { ProgressView() } }
+        }
+    }
+
+    private func save() async {
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let updated = try await service.updateMachineType(
+                id: type.id,
+                UpdateMachineTypeRequest(
+                    name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                )
+            )
+            onSaved(updated)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+private struct CreateMachineSheet: View {
+    let service: AdminService
+    let types: [MachineTypeDTO]
+    var onCreated: (MachineDTO) -> Void
+    var onCancel: () -> Void
+
+    @State private var typeId: Int?
+    @State private var brand = ""
+    @State private var model = ""
+    @State private var error: String?
+    @State private var isWorking = false
+
+    init(
+        service: AdminService,
+        types: [MachineTypeDTO],
+        onCreated: @escaping (MachineDTO) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.service = service
+        self.types = types
+        self.onCreated = onCreated
+        self.onCancel = onCancel
+        _typeId = State(initialValue: types.first?.id)
+    }
+
+    private var canSave: Bool {
+        typeId != nil
+            && !brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Type") {
+                    Picker("Machine type", selection: $typeId) {
+                        ForEach(types) { type in
+                            Text(type.name).tag(Optional(type.id))
+                        }
+                    }
+                }
+                Section("Machine") {
+                    TextField("Brand", text: $brand)
+                    TextField("Model", text: $model)
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red).font(.caption) }
+                }
+            }
+            .navigationTitle("New machine")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") { Task { await create() } }
+                        .disabled(!canSave || isWorking)
+                }
+            }
+            .overlay { if isWorking { ProgressView() } }
+        }
+    }
+
+    private func create() async {
+        guard let typeId else { return }
+        isWorking = true
+        error = nil
+        defer { isWorking = false }
+        do {
+            let created = try await service.createMachine(
+                CreateMachineRequest(
+                    machineTypeId: typeId,
+                    brand: brand.trimmingCharacters(in: .whitespacesAndNewlines),
+                    model: model.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            )
+            onCreated(created)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
