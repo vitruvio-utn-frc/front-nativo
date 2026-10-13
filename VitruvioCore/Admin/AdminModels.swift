@@ -141,6 +141,24 @@ public struct MembershipDTO: Codable, Sendable, Identifiable, Hashable {
         }
         duration = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("duration"))
     }
+
+    /// Days parsed from ASP.NET TimeSpan (`"30.00:00:00"` → 30).
+    public var durationDays: Int? {
+        guard let duration, !duration.isEmpty else { return nil }
+        let dayPart = duration.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false).first
+            .map(String.init) ?? duration
+        if let days = Int(dayPart) { return days }
+        // `"00:00:00"`-style (under one day) or other formats
+        if duration.contains(":"), !duration.contains(".") { return 0 }
+        return nil
+    }
+
+    public var durationLabel: String {
+        guard let days = durationDays else {
+            return duration ?? ""
+        }
+        return days == 1 ? "1 day" : "\(days) days"
+    }
 }
 
 public struct CreateMembershipRequest: Encodable, Sendable {
