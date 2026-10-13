@@ -154,21 +154,3 @@ public final class KeycloakTokenService: Sendable {
         return Data(body.utf8)
     }
 }
-
-enum JWTPayload {
-    static func subject(from jwt: String) -> String? {
-        let parts = jwt.split(separator: ".")
-        guard parts.count >= 2 else { return nil }
-        var payload = String(parts[1])
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        while payload.count % 4 != 0 { payload.append("=") }
-        guard let data = Data(base64Encoded: payload),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let sub = json["sub"] as? String
-        else {
-            return nil
-        }
-        return sub
-    }
-}

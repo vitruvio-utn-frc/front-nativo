@@ -18,7 +18,7 @@ Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Ma
 |---|--------|------------|-------|-------|
 | 1 | `foundation-app-architecture` | — | Core + shells iOS/Watch + App Group + builds Xcode nativo | [x] 2026-10-13 |
 | 2 | `auth-keycloak` | 1 | OIDC iPhone, Keychain, Bearer, share sesión → Watch | [x] 2026-10-13 |
-| 3 | `onboarding-profile` | 2 | User + Tenant(sub), pending approval | [ ] |
+| 3 | `onboarding-profile` | 2 | User + Tenant(sub), pending approval | [x] 2026-10-13 |
 | 4 | `gym-context-and-roles` | 3 | Gym/rol activo, switcher, roots client/staff/admin | [ ] |
 | 5 | `admin-operations` (mínimo: roles) | 4 | **Priorizar** tasks `1.x` (`admin-user-roles`) para desbloquear pending → activo | [ ] |
 | 6 | `client-training` | 4 | Planes + sesión iPhone + offline; habilita Watch | [ ] |

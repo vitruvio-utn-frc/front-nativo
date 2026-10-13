@@ -28,4 +28,4 @@ After Tenant exists, load UserGymRoles for user; count == 0 ⇒ pending. No loca
 
 ## Open Questions
 
-- Whether `description` on Tenant is free-text default (e.g. “keycloak”) — default yes
+- (resolved) Tenant `description` defaults to `"keycloak"`.
