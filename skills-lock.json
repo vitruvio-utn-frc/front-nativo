@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "skills": {
+    "app-intents": {
+      "source": "n0an/App-Intents-Agent-Skill",
+      "sourceType": "github",
+      "skillPath": "app-intents/SKILL.md",
+      "computedHash": "497ac2b65bd2aa204c7431f9500bd596627b67d8261ae34ae1ad894b14b61ebf"
+    },
+    "background-execution": {
+      "source": "n0an/Background-Execution-Agent-Skill",
+      "sourceType": "github",
+      "skillPath": "background-execution/SKILL.md",
+      "computedHash": "b5a9f4894cf835e8e9457ff6ea1140528b3e0412b5a3c6fb255aad62ab13cdd4"
+    },
+    "swift-architecture-skill": {
+      "source": "efremidze/swift-architecture-skill",
+      "sourceType": "github",
+      "skillPath": "swift-architecture-skill/SKILL.md",
+      "computedHash": "45b162ae5bd8c9f2f987a579a461398d26d3f717a3467208aad239d541a32aab"
+    },
+    "swift-concurrency-pro": {
+      "source": "twostraws/swift-concurrency-agent-skill",
+      "sourceType": "github",
+      "skillPath": "swift-concurrency-pro/SKILL.md",
+      "computedHash": "9742016666c0aa12c25e09aac5badd69969baabefd98912cf40c0a5f2c233d78"
+    },
+    "swift-format-style": {
+      "source": "n0an/Swift-FormatStyle-Agent-Skill",
+      "sourceType": "github",
+      "skillPath": "swift-format-style/SKILL.md",
+      "computedHash": "a08911f4b056126d79d83c8199423551dad1621aa0ccbc5893921b75fb1597e0"
+    },
+    "swiftdata-pro": {
+      "source": "twostraws/swiftdata-agent-skill",
+      "sourceType": "github",
+      "skillPath": "swiftdata-pro/SKILL.md",
+      "computedHash": "5dcbc77d22542c8e665fafb0039f05df9544f949ba774f870a01232cabd04488"
+    },
+    "swiftui-expert-skill": {
+      "source": "avdlee/swiftui-agent-skill",
+      "sourceType": "github",
+      "skillPath": "skills/swiftui-expert-skill/SKILL.md",
+      "computedHash": "a3001f37bde2523b4674632c209cfa7601c72e79401d122850c545ca04def27e"
+    },
+    "watchos-development": {
+      "source": "patrickserrano/lacquer",
+      "sourceType": "github",
+      "skillPath": "profiles/ios/skills/watchos-development/SKILL.md",
+      "computedHash": "c5cca728cc744feab00a41f64cde4b95850cd3478c6413a75e682fc81dfe39b7"
+    },
+    "widgets": {
+      "source": "n0an/Widgets-Agent-Skill",
+      "sourceType": "github",
+      "skillPath": "widgets/SKILL.md",
+      "computedHash": "b4ab3f62072f22570f8f8ac151fa916fc7c5f9341af609032df87ad8f4effc2d"
+    }
+  }
+}

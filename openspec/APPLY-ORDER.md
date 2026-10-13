@@ -1,7 +1,7 @@
 # Orden de apply — migración native (front-nativo)
 
-Última actualización: 2026-10-12  
-Contexto: React Native → Swift (iOS + Watch), API `vitruvio-backend-2025`, Keycloak, OpenSpec en este repo.
+Última actualización: 2026-10-13  
+Contexto: React Native → Swift (iOS + Watch) en Xcode nativo (`vitruvio.xcodeproj`, sin xtool), API `vitruvio-backend-2025`, Keycloak, OpenSpec en este repo.
 
 Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Marcar progreso abajo al completar.
 
@@ -16,7 +16,7 @@ Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Ma
 
 | # | Change | Depende de | Notas | Hecho |
 |---|--------|------------|-------|-------|
-| 1 | `foundation-app-architecture` | — | Core + shells iOS/Watch + App Group + spike build Watch | [~] 10/12; blocked on Watch build (xtool SDK sin triple watchOS) |
+| 1 | `foundation-app-architecture` | — | Core + shells iOS/Watch + App Group + builds Xcode nativo | [x] 2026-10-13 |
 | 2 | `auth-keycloak` | 1 | OIDC iPhone, Keychain, Bearer, share sesión → Watch | [ ] |
 | 3 | `onboarding-profile` | 2 | User + Tenant(sub), pending approval | [ ] |
 | 4 | `gym-context-and-roles` | 3 | Gym/rol activo, switcher, roots client/staff/admin | [ ] |

@@ -45,5 +45,5 @@ Ship after foundation. No RN migration of Auth0 tokens. Users re-login with Keyc
 
 ## Open Questions
 
-- Exact Keycloak client IDs / redirect URI host for xtool bundle id (config-time)
+- Exact Keycloak client IDs / redirect URI host for iOS bundle id `com.santiago-alvarado.vitruvio` (config-time)
 - Whether refresh tokens are readable on Watch or only access tokens are shared

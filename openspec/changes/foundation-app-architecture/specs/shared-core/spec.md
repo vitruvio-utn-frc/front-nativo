@@ -8,7 +8,7 @@ Defines the shared cross-platform core that iOS and watchOS clients use for doma
 The system MUST provide a shared Core module that compiles for iOS and watchOS and exposes no screen-level UI.
 
 #### Scenario: Core builds for both platforms
-- **WHEN** the package is built for iOS and for watchOS
+- **WHEN** the `VitruvioCore` Xcode target is built for iOS and for watchOS
 - **THEN** the shared Core module compiles successfully on both platforms
 
 #### Scenario: Core excludes screen UI
@@ -20,7 +20,7 @@ The shared Core MUST expose clear extension points (types or modules) for authen
 
 #### Scenario: Seams exist for downstream features
 - **WHEN** a later feature change needs session, gym context, API client, or offline queue integration
-- **THEN** it can depend on named Core seams without restructuring the package layout
+- **THEN** it can depend on named Core seams without restructuring the Xcode target layout
 
 ### Requirement: Shared container identity is defined
 The system MUST define a single App Group (or equivalent shared container) identifier for future secure sharing of session material between the iPhone app and the Watch app.

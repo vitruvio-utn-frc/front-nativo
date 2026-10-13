@@ -1,15 +1,17 @@
 ## Context
 
-See `proposal.md` for motivation. Today `front-nativo` is a single-library xtool SwiftPM app (`Package.swift` product `vitruvio`, iOS 17 / macOS 14) with Hello World sources only. Downstream product decisions (Keycloak, multi-gym roles, Watch training + HealthKit, offline queue) require a multi-target layout from day one. Backend auth/JWT work lives outside this repo.
+See `proposal.md` for motivation. The repo is a native Xcode multi-target app (`vitruvio.xcodeproj`) with three targets: `vitruvio` (iOS), `vitruvio.watch Watch App` (watchOS), and `VitruvioCore` (framework). There is no `Package.swift` / xtool workflow. Downstream product decisions (Keycloak, multi-gym roles, Watch training + HealthKit, offline queue) require Core seams, App Group readiness, and green iOS + Watch builds from day one. Backend auth/JWT work lives outside this repo.
+
+**Reset note (2026-10-13):** Prior task completion assumed an xtool/SwiftPM layout that no longer exists. Foundation is re-applied against the Xcode project; previous `[x]` marks were invalidated.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Establish SPM targets/products for Core, iOS shell, and Watch shell
+- Establish Xcode targets for Core, iOS shell, and Watch shell with Core shared by both apps
 - Keep Core compilable on iOS + watchOS with seams for session, gym context, API, offline queue
 - Reserve App Group identity for later token/session sharing
-- Validate (or document fallback for) building a Watch companion with the current xtool workflow
+- Validate building iOS and Watch via native Xcode schemes
 
 **Non-Goals:**
 
@@ -23,33 +25,27 @@ See `proposal.md` for motivation. Today `front-nativo` is a single-library xtool
 ### D1: Module layout
 
 ```
-Package.swift
-  products:
-    - library VitruvioCore
-    - library vitruvio          (iOS app library for xtool, if still required)
-    - library VitruvioWatch     (Watch app library / target as tooling allows)
+vitruvio.xcodeproj
   targets:
-    - VitruvioCore     (iOS + watchOS)
-    - vitruvio         (iOS UI shell, depends on Core)
-    - VitruvioWatch    (watchOS UI shell, depends on Core)
+    - VitruvioCore              (framework, iOS + watchOS)
+    - vitruvio                  (iOS UI shell, links Core)
+    - vitruvio.watch Watch App  (watchOS UI shell, links Core; embedded in iOS)
 ```
 
-**Rationale:** Matches the explored “structured from day 1 + Watch companion” constraint; keeps UI out of Core.  
-**Alternatives:** Single target with `#if os` — rejected (poor Watch isolation). Feature targets per domain now — deferred until auth/training exist to avoid empty packages.
+**Rationale:** Matches Apple’s native companion layout; keeps UI out of Core; Watch is a first-class Xcode target (no hybrid xtool path).  
+**Alternatives:** Single target with `#if os` — rejected (poor Watch isolation). Feature targets per domain now — deferred until auth/training exist to avoid empty frameworks. SwiftPM `Package.swift` — rejected; project is full Xcode.
 
-Feature UI for later changes may live under `Sources/vitruvio/...` or new feature libraries; Core stays free of screens.
+Feature UI for later changes may live under `vitruvio/...` (or new feature frameworks); Core stays free of screens.
 
 ### D2: Platform support
 
-- **iOS:** keep `.v17` (current scaffold).
-- **watchOS:** add a modern baseline compatible with SwiftUI `App` lifecycle (prefer watchOS 10+ unless xtool forces otherwise); record exact version after the build spike.
-- **macOS:** drop from Core/app products unless a concrete need appears — reduces `#if` noise for a gym phone+watch product.
-
-**Alternatives:** Keep macOS “for free” — low value for this product, extra surface.
+- **iOS:** project baseline `IPHONEOS_DEPLOYMENT_TARGET = 18.2`.
+- **watchOS:** project baseline `WATCHOS_DEPLOYMENT_TARGET = 11.2` (SwiftUI `App` lifecycle).
+- **macOS / visionOS:** drop from `SUPPORTED_PLATFORMS` on product/Core targets unless a concrete need appears — reduces `#if` noise for a gym phone+watch product.
 
 ### D3: App Group
 
-- Identifier pattern: `group.<ios-bundle-id>` (e.g. `group.com.santiago-alvarado.vitruvio`) unless Apple team conventions require otherwise.
+- Identifier: `group.com.santiago-alvarado.vitruvio` (pattern `group.<ios-bundle-id>`).
 - iOS and Watch entitlements both include it in this change; no Keychain access-group wiring beyond what’s needed to declare the group (full Keychain sharing lands in `auth-keycloak`).
 
 ### D4: Core seams (stubs OK)
@@ -67,18 +63,19 @@ No SwiftUI Views in Core.
 
 ### D5: Shell UX for this change only
 
-- iOS: minimal root acknowledging the app shell (can replace Hello World copy).
+- iOS: minimal root acknowledging the app shell (replace SwiftData template / Hello World).
 - Watch: minimal client-oriented root (placeholder for training later).
 - No role-based tabs yet.
 
-### D6: xtool + Watch packaging
+### D6: Build path (Xcode native)
 
-xtool today expects one main library product for the iOS app. Watch may require:
+Build and run exclusively via Xcode / `xcodebuild` schemes:
 
-1. **Preferred:** xtool multi-target / companion support if available — use it.
-2. **Fallback:** keep iOS on xtool; add Watch via documented Xcode/SPM companion setup, still sharing `VitruvioCore` from the same package.
+- `vitruvio` — iOS app (embeds Watch content)
+- `vitruvio.watch Watch App` — Watch app
+- `VitruvioCore` — shared framework
 
-This change includes a short spike task; design outcome must be noted in tasks completion notes or a brief addendum in this file if the fallback is chosen.
+`VitruvioCore` MUST include watchOS in `SUPPORTED_PLATFORMS` so the Watch target can link it. Both app targets MUST have an explicit target dependency + framework link on Core.
 
 ### D7: Watch Connectivity
 
@@ -90,20 +87,20 @@ Centralize API base URL and Keycloak placeholders in Core config (compile-time o
 
 ## Risks / Trade-offs
 
-- **[Risk] xtool lacks first-class Watch companions** → Mitigation: spike early; fallback to hybrid Xcode Watch target + shared Core.
+- **[Risk] Core not built for watchOS** → Mitigation: set Core `SUPPORTED_PLATFORMS` to include `watchos` / `watchsimulator`; verify Watch scheme links Core.
 - **[Risk] Over-structuring empty seams** → Mitigation: seams are thin stubs/folders only; no speculative frameworks.
-- **[Risk] Bundle ID / App Group mismatch with Apple Developer portal** → Mitigation: use current `xtool.yml` bundle ID as source of truth; create App Group in the team account before device runs.
-- **[Trade-off] Dropping macOS** → Less casual desktop run; clearer phone+watch focus.
+- **[Risk] Bundle ID / App Group mismatch with Apple Developer portal** → Mitigation: use `com.santiago-alvarado.vitruvio` as source of truth; create App Group in the team account before device runs.
+- **[Trade-off] Dropping macOS/visionOS** → Less casual desktop/spatial run; clearer phone+watch focus.
 
 ## Migration Plan
 
-1. Restructure `Sources/` and `Package.swift` on a branch.
-2. Confirm iOS still builds via existing xtool path.
-3. Complete Watch spike; land either xtool Watch or hybrid fallback.
-4. No data migration (greenfield app).
-5. Rollback: revert package layout commit; no server coupling.
+1. Complete Core seams + enable watchOS on Core; link from both shells.
+2. Add App Group entitlements to iOS and Watch.
+3. Replace template shell UI; smoke-check Core symbols from both apps.
+4. Verify `xcodebuild` success for iOS and Watch schemes.
+5. No data migration (greenfield app). Rollback: revert project/source commits; no server coupling.
 
 ## Open Questions
 
-- (resolved) watchOS deployment version: **watchOS 10** in `Package.swift`.
-- (resolved) xtool Watch packaging: **hybrid fallback**. xtool 1.21 builds the iOS product (`vitruvio`) and Appex-style `extensions`; it does not ship a first-class Watch companion product. Watch sources live in `VitruvioWatch` + `Watch.entitlements` / `Watch-Info.plist` in this package; device packaging uses Xcode (or future xtool Watch support) while sharing `VitruvioCore`. iOS continues on `xtool dev`.
+- (resolved) watchOS deployment version: **watchOS 11.2** (Xcode project baseline).
+- (resolved) packaging path: **full native Xcode** — iOS + Watch + Core in `vitruvio.xcodeproj`. xtool / SwiftPM are out of scope.
