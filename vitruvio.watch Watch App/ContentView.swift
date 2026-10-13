@@ -13,11 +13,17 @@ struct ContentView: View {
         VStack(spacing: 8) {
             Text("Vitruvio")
                 .font(.headline)
-            Text("Client companion")
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
-            if session.hasSession {
+            switch session.phase {
+            case .signedOut:
+                Text("Sign in on iPhone")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            case .clientReady:
+                Text("Client companion")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Session shared")
                     .font(.caption2)
                 if let subject = session.subject {
@@ -26,11 +32,18 @@ struct ContentView: View {
                         .foregroundStyle(.tertiary)
                         .lineLimit(2)
                 }
-            } else {
-                Text("Sign in on iPhone")
+            case .clientContextRequired:
+                Text("Client only")
+                    .font(.caption)
+                Text("Switch to a client role on iPhone to use Watch training.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                if let role = session.activeRoleName {
+                    Text("Active: \(role)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Button("Refresh") {

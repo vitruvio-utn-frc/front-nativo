@@ -15,6 +15,8 @@ Depends on auth + onboarding. Role names come from API `Role` records (seed/admi
 ### D2: Role kind mapping
 Map API role names (or ids) to app kinds: `client | staff | admin`. Unknown roles show a safe fallback message.
 
+`admin` and `superadmin` have **full shell access**: they can present client, staff, and admin roots for the active gym (switcher “View as”), without needing separate `UserGymRole` rows for each. Default shell for both remains admin.
+
 ### D3: Persistence
 Store last `(gymId, roleId)` in App Group-friendly defaults so Watch can read active gym for client training later.
 

@@ -10,8 +10,18 @@ import VitruvioCore
 @MainActor
 @Observable
 final class WatchSessionModel {
+    enum CompanionPhase: Equatable {
+        case signedOut
+        /// Shared session present and active role is client-capable.
+        case clientReady
+        /// Session exists but active role is staff/admin (or missing client context).
+        case clientContextRequired
+    }
+
+    private(set) var phase: CompanionPhase = .signedOut
     private(set) var hasSession = false
     private(set) var subject: String?
+    private(set) var activeRoleName: String?
     private(set) var lastError: String?
 
     private let tokenStore: KeychainTokenStore
@@ -36,11 +46,26 @@ final class WatchSessionModel {
             } else {
                 hasSession = false
                 subject = nil
+                phase = .signedOut
+                activeRoleName = nil
+                return
             }
         } catch {
             hasSession = false
             subject = nil
+            phase = .signedOut
+            activeRoleName = nil
             lastError = error.localizedDescription
+            return
+        }
+
+        let snapshot = SharedGymContextReader.load()
+        activeRoleName = snapshot?.role?.name
+        if snapshot?.isClientCapable == true {
+            phase = .clientReady
+        } else {
+            // Staff/admin active on iPhone — Watch stays client-only (no ops UI).
+            phase = .clientContextRequired
         }
     }
 

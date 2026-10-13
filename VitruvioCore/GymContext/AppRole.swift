@@ -41,4 +41,46 @@ public enum AppRole: Int, Codable, CaseIterable, Sendable, Identifiable, Hashabl
         }
         self = match
     }
+
+    /// Default iPhone root shell for this role. `superadmin` defaults to admin.
+    public var shell: RoleShell {
+        switch self {
+        case .cliente: .client
+        case .staff: .staff
+        case .admin, .superadmin: .admin
+        }
+    }
+
+    /// Admin / superadmin can open every role shell in the active gym.
+    public var hasFullShellAccess: Bool {
+        self == .admin || self == .superadmin
+    }
+
+    /// Shells this role may present. Elevated roles get client + staff + admin.
+    public var accessibleShells: [RoleShell] {
+        hasFullShellAccess ? RoleShell.allCases : [shell]
+    }
+
+    /// Whether Watch may use this role for client training context.
+    /// Elevated roles can use the client companion without a separate client membership.
+    public var isClientCapable: Bool {
+        self == .cliente || hasFullShellAccess
+    }
+}
+
+/// iPhone root navigator kind driven by the active `AppRole`.
+public enum RoleShell: String, Codable, CaseIterable, Sendable, Hashable, Identifiable {
+    case client
+    case staff
+    case admin
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .client: "Client"
+        case .staff: "Staff"
+        case .admin: "Admin"
+        }
+    }
 }

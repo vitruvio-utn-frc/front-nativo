@@ -22,7 +22,7 @@ struct ContentView: View {
             case .pendingApproval(let userId):
                 PendingApprovalView(gate: gate, userId: userId)
             case .ready(let userId):
-                ReadyPlaceholderView(gate: gate, userId: userId)
+                GymSessionView(userId: userId, session: session)
             case .loadFailed:
                 loadFailedView
             }
