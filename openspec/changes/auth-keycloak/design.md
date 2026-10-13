@@ -45,5 +45,5 @@ Ship after foundation. No RN migration of Auth0 tokens. Users re-login with Keyc
 
 ## Open Questions
 
-- Exact Keycloak client IDs / redirect URI host for iOS bundle id `com.santiago-alvarado.vitruvio` (config-time)
-- Whether refresh tokens are readable on Watch or only access tokens are shared
+- (resolved) Redirect URI: `com.santiago-alvarado.vitruvio://oauth2redirect` (custom scheme = bundle id). Client id placeholder `vitruvio-ios` in `AppConfig` until realm is finalized.
+- (resolved) Shared Keychain stores full `AuthTokens` (including refresh) under access group `$(AppIdentifierPrefix)com.santiago-alvarado.vitruvio` so Watch can refresh/authorize without Watch Connectivity.

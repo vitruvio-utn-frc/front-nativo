@@ -8,9 +8,14 @@ import VitruvioCore
 
 @main
 struct vitruvioApp: App {
+    @State private var session = AuthSessionModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(session: session)
+                .task {
+                    await session.restoreOnLaunch()
+                }
         }
     }
 }

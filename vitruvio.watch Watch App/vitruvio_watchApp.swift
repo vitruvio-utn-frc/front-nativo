@@ -4,13 +4,14 @@
 //
 
 import SwiftUI
-import VitruvioCore
 
 @main
 struct vitruvio_watch_Watch_AppApp: App {
+    @State private var session = WatchSessionModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(session: session)
         }
     }
 }
