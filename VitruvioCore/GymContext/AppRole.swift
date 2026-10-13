@@ -51,20 +51,27 @@ public enum AppRole: Int, Codable, CaseIterable, Sendable, Identifiable, Hashabl
         }
     }
 
-    /// Admin / superadmin can open every role shell in the active gym.
+    /// Only superadmin can open every role shell (“View as”) in the active gym.
+    /// Gym `admin` stays on the admin shell only.
     public var hasFullShellAccess: Bool {
-        self == .admin || self == .superadmin
+        self == .superadmin
     }
 
-    /// Shells this role may present. Elevated roles get client + staff + admin.
+    /// Only superadmin may list/create companies across the platform.
+    /// Gym `admin` is scoped to a single company (gyms under that company only).
+    public var canManageCompanies: Bool {
+        self == .superadmin
+    }
+
+    /// Shells this role may present. Superadmin gets client + staff + admin.
     public var accessibleShells: [RoleShell] {
         hasFullShellAccess ? RoleShell.allCases : [shell]
     }
 
     /// Whether Watch may use this role for client training context.
-    /// Elevated roles can use the client companion without a separate client membership.
+    /// Admin/superadmin can use the client companion without a separate client membership.
     public var isClientCapable: Bool {
-        self == .cliente || hasFullShellAccess
+        self == .cliente || self == .admin || self == .superadmin
     }
 }
 

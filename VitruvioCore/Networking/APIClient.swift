@@ -4,6 +4,7 @@ public enum APIClientError: Error, Equatable, Sendable {
     case invalidResponse
     case unauthorized
     case httpStatus(Int)
+    case message(status: Int, body: String)
 }
 
 public protocol APIClient: Sendable {

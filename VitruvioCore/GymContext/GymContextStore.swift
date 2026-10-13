@@ -21,7 +21,7 @@ public final class GymContextController: GymContextStore {
     public private(set) var userId: String?
     public private(set) var memberships: [GymMembership] = []
     public private(set) var activeMembership: GymMembership?
-    /// Shell currently shown. For admin/superadmin this may differ from the membership's default shell.
+    /// Shell currently shown. For superadmin this may differ from the membership's default shell.
     public private(set) var presentedShell: RoleShell?
     public var activeSelection: GymRoleSelection? { activeMembership?.selection }
 

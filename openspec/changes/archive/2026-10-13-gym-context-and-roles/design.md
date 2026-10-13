@@ -17,6 +17,10 @@ Map API role names (or ids) to app kinds: `client | staff | admin`. Unknown role
 
 `admin` and `superadmin` have **full shell access**: they can present client, staff, and admin roots for the active gym (switcher “View as”), without needing separate `UserGymRole` rows for each. Default shell for both remains admin.
 
+Company vs gym admin scope (product rule):
+- `superadmin`: can list/create companies and manage gyms under any company.
+- `admin`: scoped to the company of the active gym; can create/edit gyms only in that company (no company CRUD).
+
 ### D3: Persistence
 Store last `(gymId, roleId)` in App Group-friendly defaults so Watch can read active gym for client training later.
 

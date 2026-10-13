@@ -57,12 +57,18 @@ public struct CreateUserRequest: Encodable, Sendable {
     }
 }
 
-public struct UserDTO: Codable, Sendable {
+public struct UserDTO: Codable, Sendable, Identifiable, Hashable {
     public let id: String
     public let email: String?
     public let firstName: String?
     public let lastName: String?
     public let idNumber: Int?
+
+    public var displayName: String {
+        let parts = [firstName, lastName].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        if !parts.isEmpty { return parts.joined(separator: " ") }
+        return email ?? id
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKeys.self)

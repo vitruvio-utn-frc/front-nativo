@@ -150,6 +150,7 @@ final class AppGateModel {
             case .unauthorized: return "Unauthorized"
             case .httpStatus(let code): return "HTTP \(code)"
             case .invalidResponse: return "Invalid response"
+            case .message(let status, let body): return "API \(status): \(body)"
             @unknown default:
                 return "API error"
             }

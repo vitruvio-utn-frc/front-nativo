@@ -24,7 +24,7 @@ final class GymSessionModel {
 
     let userId: String
     let gymContext: GymContextController
-    private let session: AuthSessionModel
+    let session: AuthSessionModel
 
     init(userId: String, session: AuthSessionModel, gymContext: GymContextController? = nil) {
         self.userId = userId

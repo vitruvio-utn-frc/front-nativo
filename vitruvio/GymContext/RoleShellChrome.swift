@@ -12,8 +12,14 @@ struct RoleShellChrome<Content: View>: View {
     let title: String
     @ViewBuilder var content: () -> Content
 
+    /// Role/view switching is superadmin-only. Admin stays on the admin shell.
+    private var canSwitchRoleAndView: Bool {
+        model.gymContext.activeMembership?.role?.hasFullShellAccess == true
+    }
+
     private var showsSwitcher: Bool {
-        model.gymContext.availableShells.count > 1 || model.gymContext.memberships.count > 1
+        canSwitchRoleAndView
+            && (model.gymContext.availableShells.count > 1 || model.gymContext.memberships.count > 1)
     }
 
     var body: some View {

@@ -27,12 +27,16 @@ When the active role is admin, the iPhone app MUST present the admin root shell.
 - **WHEN** the active membership role is admin
 - **THEN** the user sees the admin root navigation
 
-### Requirement: Elevated roles can open all shells
-When the active membership role is admin or superadmin, the iPhone app MUST allow presenting client, staff, and admin roots for the active gym without requiring separate memberships for each shell.
+### Requirement: Superadmin can open all shells
+When the active membership role is superadmin, the iPhone app MUST allow presenting client, staff, and admin roots for the active gym without requiring separate memberships for each shell. Gym admin MUST remain on the admin shell only (no role/view switcher).
 
-#### Scenario: Admin views client shell
-- **WHEN** the active membership is admin or superadmin and the user selects the client view
+#### Scenario: Superadmin views client shell
+- **WHEN** the active membership is superadmin and the user selects the client view
 - **THEN** the app presents the client root shell
+
+#### Scenario: Admin stays on admin shell
+- **WHEN** the active membership is admin
+- **THEN** the app presents the admin root shell and MUST NOT offer View as / role switching
 
 ### Requirement: Watch remains client-oriented
 The Watch app MUST NOT present staff or admin root navigators; it only proceeds with training-capable client context when available.

@@ -28,6 +28,7 @@ public struct GymContextService: Sendable {
                     userId: row.userId,
                     gymId: row.gymId,
                     gymName: gym?.name ?? "Gym",
+                    companyId: gym?.companyId,
                     roleId: roleId,
                     roleName: roleDTO?.name ?? appRole?.name ?? "role-\(roleId)",
                     role: appRole
