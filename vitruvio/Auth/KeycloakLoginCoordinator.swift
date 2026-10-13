@@ -67,6 +67,25 @@ final class KeycloakLoginCoordinator: NSObject, ASWebAuthenticationPresentationC
         return try await tokenService.exchangeAuthorizationCode(code, codeVerifier: verifier)
     }
 
+    /// Ends the Keycloak SSO session via the OIDC end_session endpoint.
+    /// Completes when Keycloak redirects back, or if the user cancels the sheet.
+    func logout(endSessionURL: URL) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let authSession = ASWebAuthenticationSession(
+                url: endSessionURL,
+                callbackURLScheme: AppConfig.oauthCallbackScheme
+            ) { _, _ in
+                continuation.resume()
+            }
+            authSession.presentationContextProvider = self
+            authSession.prefersEphemeralWebBrowserSession = false
+            self.session = authSession
+            if !authSession.start() {
+                continuation.resume()
+            }
+        }
+    }
+
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         if let window = scenes.flatMap(\.windows).first(where: \.isKeyWindow) {

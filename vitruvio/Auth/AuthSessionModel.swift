@@ -68,10 +68,20 @@ final class AuthSessionModel {
         isBusy = true
         lastError = nil
         defer { isBusy = false }
+
+        // Capture end-session URL (needs id_token) before clearing local Keychain.
+        let endSessionURL = sessionController.endSessionURL()
+
+        if let endSessionURL {
+            await loginCoordinator.logout(endSessionURL: endSessionURL)
+        }
+
         do {
             try sessionController.logout()
             state = .unauthenticated
         } catch {
+            // Local clear failed, but Keycloak end_session may already have run.
+            state = .unauthenticated
             lastError = error.localizedDescription
         }
     }
