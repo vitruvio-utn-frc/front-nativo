@@ -24,31 +24,35 @@ final class KeycloakLoginCoordinator: NSObject, ASWebAuthenticationPresentationC
         let authURL = try tokenService.makeAuthorizationURL(state: state, codeChallenge: challenge)
 
         let callbackURL: URL = try await withCheckedThrowingContinuation { continuation in
+            // ASWebAuthenticationSession may invoke the completion handler before
+            // `start()` returns; guard against double-resume.
+            let once = CheckedThrowingResumeOnce<URL>(continuation)
             let authSession = ASWebAuthenticationSession(
                 url: authURL,
                 callbackURLScheme: AppConfig.oauthCallbackScheme
-            ) { url, error in
+            ) { [weak self] url, error in
+                self?.session = nil
                 if let error {
                     let nsError = error as NSError
                     if nsError.domain == ASWebAuthenticationSessionError.errorDomain,
                        nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
-                        continuation.resume(throwing: KeycloakAuthError.cancelled)
+                        once.resume(throwing: KeycloakAuthError.cancelled)
                     } else {
-                        continuation.resume(throwing: error)
+                        once.resume(throwing: error)
                     }
                     return
                 }
                 guard let url else {
-                    continuation.resume(throwing: KeycloakAuthError.invalidResponse)
+                    once.resume(throwing: KeycloakAuthError.invalidResponse)
                     return
                 }
-                continuation.resume(returning: url)
+                once.resume(returning: url)
             }
             authSession.presentationContextProvider = self
             authSession.prefersEphemeralWebBrowserSession = false
             self.session = authSession
             if !authSession.start() {
-                continuation.resume(throwing: KeycloakAuthError.invalidResponse)
+                once.resume(throwing: KeycloakAuthError.invalidResponse)
             }
         }
 
@@ -71,17 +75,19 @@ final class KeycloakLoginCoordinator: NSObject, ASWebAuthenticationPresentationC
     /// Completes when Keycloak redirects back, or if the user cancels the sheet.
     func logout(endSessionURL: URL) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let once = CheckedResumeOnce(continuation)
             let authSession = ASWebAuthenticationSession(
                 url: endSessionURL,
                 callbackURLScheme: AppConfig.oauthCallbackScheme
-            ) { _, _ in
-                continuation.resume()
+            ) { [weak self] _, _ in
+                self?.session = nil
+                once.resume()
             }
             authSession.presentationContextProvider = self
             authSession.prefersEphemeralWebBrowserSession = false
             self.session = authSession
             if !authSession.start() {
-                continuation.resume()
+                once.resume()
             }
         }
     }
@@ -92,5 +98,40 @@ final class KeycloakLoginCoordinator: NSObject, ASWebAuthenticationPresentationC
             return window
         }
         return scenes.flatMap(\.windows).first ?? ASPresentationAnchor()
+    }
+}
+
+/// Ensures a `CheckedContinuation` is resumed at most once.
+@MainActor
+private final class CheckedResumeOnce {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    init(_ continuation: CheckedContinuation<Void, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+/// Ensures a throwing `CheckedContinuation` is resumed at most once.
+@MainActor
+private final class CheckedThrowingResumeOnce<T> {
+    private var continuation: CheckedContinuation<T, Error>?
+
+    init(_ continuation: CheckedContinuation<T, Error>) {
+        self.continuation = continuation
+    }
+
+    func resume(returning value: T) {
+        continuation?.resume(returning: value)
+        continuation = nil
+    }
+
+    func resume(throwing error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
     }
 }
