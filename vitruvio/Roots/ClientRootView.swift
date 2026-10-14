@@ -11,11 +11,11 @@ struct ClientRootView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                RoleShellChrome(model: model, title: "Client") {
-                    placeholder("Training & plans land in client-training")
+                RoleShellChrome(model: model, title: "Training") {
+                    ClientTrainingHomeView(session: model)
                 }
             }
-            .tabItem { Label("Home", systemImage: "figure.run") }
+            .tabItem { Label("Training", systemImage: "figure.run") }
 
             NavigationStack {
                 RoleShellChrome(model: model, title: "Client") {

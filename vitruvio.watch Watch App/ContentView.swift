@@ -32,6 +32,21 @@ struct ContentView: View {
                         .foregroundStyle(.tertiary)
                         .lineLimit(2)
                 }
+                if let training = SharedActiveTrainingSessionReader.load() {
+                    Divider()
+                    Text(training.planName ?? "Active workout")
+                        .font(.caption)
+                    Text("Session \(training.sessionId.prefix(8))…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("\(training.executionCount) ex · \(training.setCount) sets")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("No active workout")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             case .clientContextRequired:
                 Text("Client only")
                     .font(.caption)
