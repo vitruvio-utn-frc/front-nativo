@@ -7,75 +7,80 @@ import Foundation
 import Observation
 import VitruvioCore
 
+/// Watch companion session — UI state from iPhone only. No local auth tokens.
 @MainActor
 @Observable
 final class WatchSessionModel {
     enum CompanionPhase: Equatable {
         case signedOut
-        /// Shared session present and active role is client-capable.
         case clientReady
-        /// Session exists but active role is staff/admin (or missing client context).
         case clientContextRequired
     }
 
     private(set) var phase: CompanionPhase = .signedOut
-    private(set) var hasSession = false
-    private(set) var subject: String?
+    private(set) var hasPhoneSession = false
+    private(set) var memberId: String?
     private(set) var activeRoleName: String?
     private(set) var lastError: String?
+    private(set) var latestSnapshot: CompanionSyncSnapshot?
 
-    private let tokenStore: KeychainTokenStore
-    private let sessionController: SessionController
-    let apiClient: AuthenticatedAPIClient
+    var isPhoneReachable: Bool { WatchConnectivityBridge.shared.isReachable }
+
+    nonisolated(unsafe) private var syncObserver: NSObjectProtocol?
 
     init() {
-        let store = KeychainTokenStore()
-        let controller = SessionController(tokenStore: store)
-        self.tokenStore = store
-        self.sessionController = controller
-        self.apiClient = AuthenticatedAPIClient(tokenProvider: controller)
+        syncObserver = NotificationCenter.default.addObserver(
+            forName: .companionSyncDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                if let snapshot = notification.object as? CompanionSyncSnapshot {
+                    self?.apply(snapshot)
+                } else {
+                    self?.reloadFromBridge()
+                }
+            }
+        }
     }
 
-    func reloadSharedSession() {
-        lastError = nil
-        do {
-            if let tokens = try tokenStore.load() {
-                try sessionController.applyLogin(tokens)
-                hasSession = true
-                subject = tokens.subject
-            } else {
-                hasSession = false
-                subject = nil
-                phase = .signedOut
-                activeRoleName = nil
-                return
-            }
-        } catch {
-            hasSession = false
-            subject = nil
-            phase = .signedOut
+    deinit {
+        if let syncObserver {
+            NotificationCenter.default.removeObserver(syncObserver)
+        }
+    }
+
+    func reloadFromBridge() {
+        if let snapshot = WatchConnectivityBridge.shared.lastReceivedSnapshot {
+            apply(snapshot)
+        }
+    }
+
+    func apply(_ snapshot: CompanionSyncSnapshot) {
+        latestSnapshot = snapshot
+        hasPhoneSession = snapshot.hasAuth
+        memberId = snapshot.userId
+        if let roleId = snapshot.roleId, let id = Int(roleId) {
+            activeRoleName = AppRole(id: id)?.name
+        } else {
             activeRoleName = nil
-            lastError = error.localizedDescription
+        }
+
+        guard snapshot.hasAuth else {
+            phase = .signedOut
             return
         }
 
-        let snapshot = SharedGymContextReader.load()
-        activeRoleName = snapshot?.role?.name
-        if snapshot?.isClientCapable == true {
+        let role = snapshot.roleId.flatMap { Int($0) }.flatMap(AppRole.init(id:))
+        if role?.isClientCapable == true {
             phase = .clientReady
         } else {
-            // Staff/admin active on iPhone — Watch stays client-only (no ops UI).
             phase = .clientContextRequired
         }
     }
 
-    /// Builds an authorized request using the shared session (for smoke verification).
-    func authorizedRequest() async throws -> URLRequest {
-        var request = URLRequest(url: AppConfig.apiBaseURL.appending(path: "health"))
-        request.httpMethod = "GET"
-        if let token = try await sessionController.accessTokenForRequest() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        return request
+    func requestSync() {
+        WatchConnectivityBridge.shared.requestFullSyncFromPhone()
+        reloadFromBridge()
     }
 }

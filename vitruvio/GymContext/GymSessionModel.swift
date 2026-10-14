@@ -41,6 +41,7 @@ final class GymSessionModel {
         do {
             try await gymContext.load(userId: userId)
             reconcilePhase()
+            pushCompanionGymContext()
         } catch {
             lastError = error.localizedDescription
             phase = .failed
@@ -50,20 +51,24 @@ final class GymSessionModel {
     func select(_ membership: GymMembership) {
         gymContext.select(membership)
         reconcilePhase()
+        pushCompanionGymContext()
     }
 
     func selectShell(_ shell: RoleShell) {
         gymContext.selectShell(shell)
         reconcilePhase()
+        pushCompanionGymContext()
     }
 
     func showPicker() {
         gymContext.clearActiveSelection()
         reconcilePhase()
+        pushCompanionGymContext()
     }
 
     func clearAndSignOut() async {
         gymContext.clear()
+        pushCompanionGymContext()
         await session.logout()
     }
 
@@ -86,5 +91,9 @@ final class GymSessionModel {
         }
 
         phase = .active
+    }
+
+    private func pushCompanionGymContext() {
+        Task { await CompanionPhoneGateway.shared.publish() }
     }
 }

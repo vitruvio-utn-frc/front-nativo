@@ -26,7 +26,7 @@ public struct OfflineMutationRecord: Codable, Identifiable, Sendable, Equatable 
     }
 }
 
-/// File-backed offline queue in the App Group container.
+/// File-backed offline queue in the on-device caches directory.
 public final class FileOfflineQueue: OfflineQueue, @unchecked Sendable {
     public private(set) var pendingCount: Int = 0
 
@@ -37,8 +37,7 @@ public final class FileOfflineQueue: OfflineQueue, @unchecked Sendable {
     private var records: [OfflineMutationRecord] = []
 
     public init(fileManager: FileManager = .default) {
-        let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier)
-            ?? fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let base = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         self.fileURL = base.appending(path: "offline-mutation-queue.json")
         self.records = Self.load(from: fileURL, decoder: decoder)
         self.pendingCount = records.count

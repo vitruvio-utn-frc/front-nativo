@@ -27,6 +27,7 @@ struct ClientTrainingHomeView: View {
                 )
             }
             await model?.loadPlans()
+            await CompanionPhoneGateway.shared.publish()
         }
     }
 

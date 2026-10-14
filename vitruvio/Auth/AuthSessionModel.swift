@@ -46,6 +46,7 @@ final class AuthSessionModel {
             state = .unauthenticated
             lastError = error.localizedDescription
         }
+        pushCompanionAuth()
     }
 
     func login() async {
@@ -56,6 +57,7 @@ final class AuthSessionModel {
             let tokens = try await loginCoordinator.login()
             try sessionController.applyLogin(tokens)
             state = .authenticated(tokens)
+            pushCompanionAuth()
         } catch let error as KeycloakAuthError where error == .cancelled {
             // Stay unauthenticated; do not store tokens.
             lastError = nil
@@ -84,5 +86,10 @@ final class AuthSessionModel {
             state = .unauthenticated
             lastError = error.localizedDescription
         }
+        pushCompanionAuth()
+    }
+
+    private func pushCompanionAuth() {
+        Task { await CompanionPhoneGateway.shared.publish() }
     }
 }

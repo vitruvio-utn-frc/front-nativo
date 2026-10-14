@@ -489,6 +489,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/vitruvio-Info.plist";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio opens Apple Watch to run your strength workout and show heart rate during training.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio coordinates strength workouts with Apple Watch and Apple Health.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -526,6 +528,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/vitruvio-Info.plist";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio opens Apple Watch to run your strength workout and show heart rate during training.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio coordinates strength workouts with Apple Watch and Apple Health.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -562,6 +566,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = vitruvio.watch;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio uses HealthKit to run your strength workout and show heart rate during training.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio saves strength workouts to Apple Health when you train on Apple Watch.";
+				INFOPLIST_KEY_UIBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -593,6 +600,9 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = vitruvio.watch;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio uses HealthKit to run your strength workout and show heart rate during training.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio saves strength workouts to Apple Health when you train on Apple Watch.";
+				INFOPLIST_KEY_UIBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio";
 				LD_RUNPATH_SEARCH_PATHS = (

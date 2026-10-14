@@ -164,7 +164,7 @@ public struct CreateExerciseCompletionRequest: Codable, Sendable {
     }
 }
 
-/// Durable snapshot of the active training session for App Group / Watch.
+/// Durable snapshot of the active training session (synced via Watch Connectivity).
 public struct ActiveTrainingSessionSnapshot: Codable, Equatable, Sendable {
     public var sessionId: String
     public var planId: String?

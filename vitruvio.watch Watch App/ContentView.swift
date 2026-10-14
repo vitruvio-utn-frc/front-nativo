@@ -10,72 +10,97 @@ struct ContentView: View {
     @Bindable var session: WatchSessionModel
 
     var body: some View {
+        Group {
+            switch session.phase {
+            case .signedOut:
+                signedOutView
+            case .clientContextRequired:
+                clientContextRequiredView
+            case .clientReady:
+                WatchTrainingRootView()
+            }
+        }
+        .onAppear {
+            WatchConnectivityBridge.shared.activate()
+            session.requestSync()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .companionSyncDidUpdate)) { notification in
+            if let snapshot = notification.object as? CompanionSyncSnapshot {
+                session.apply(snapshot)
+            } else {
+                session.reloadFromBridge()
+            }
+        }
+    }
+
+    private var phoneLinkLabel: some View {
+        let bridge = WatchConnectivityBridge.shared
+        return Label(
+            bridge.isReachable ? "iPhone linked" : (bridge.isActivated ? "Waiting for iPhone…" : "Connecting…"),
+            systemImage: bridge.isReachable ? "iphone.gen3.radiowaves.left.and.right" : "iphone"
+        )
+        .font(.caption2)
+        .foregroundStyle(bridge.isReachable ? .green : .secondary)
+    }
+
+    private var signedOutView: some View {
         VStack(spacing: 8) {
             Text("Vitruvio")
                 .font(.headline)
-
-            switch session.phase {
-            case .signedOut:
-                Text("Sign in on iPhone")
+            phoneLinkLabel
+            Text("Sign in on iPhone")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let snap = session.latestSnapshot {
+                Text("sync auth=\(snap.hasAuth ? "yes" : "no") role=\(snap.roleId ?? "-")")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            case .clientReady:
-                Text("Client companion")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Session shared")
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text("sync: waiting…")
                     .font(.caption2)
-                if let subject = session.subject {
-                    Text(subject)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(2)
-                }
-                if let training = SharedActiveTrainingSessionReader.load() {
-                    Divider()
-                    Text(training.planName ?? "Active workout")
-                        .font(.caption)
-                    Text("Session \(training.sessionId.prefix(8))…")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("\(training.executionCount) ex · \(training.setCount) sets")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                } else {
-                    Text("No active workout")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            case .clientContextRequired:
-                Text("Client only")
-                    .font(.caption)
-                Text("Switch to a client role on iPhone to use Watch training.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                if let role = session.activeRoleName {
-                    Text("Active: \(role)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
+                    .foregroundStyle(.tertiary)
             }
-
+            Text(WatchConnectivityBridge.shared.receivedContextSummary ?? "ctx: —")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(2)
             Button("Refresh") {
-                session.reloadSharedSession()
+                WatchConnectivityBridge.shared.refreshDiagnostics()
+                WatchConnectivityBridge.shared.applyReceivedApplicationContext(force: true)
+                session.requestSync()
             }
             .font(.caption2)
-
-            if let error = session.lastError {
+            if let error = WatchConnectivityBridge.shared.lastError {
                 Text(error)
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
             }
         }
         .padding()
-        .onAppear {
-            session.reloadSharedSession()
+    }
+
+    private var clientContextRequiredView: some View {
+        VStack(spacing: 8) {
+            Text("Vitruvio")
+                .font(.headline)
+            phoneLinkLabel
+            Text("Client only")
+                .font(.caption)
+            Text("Switch to a client role on iPhone.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let role = session.activeRoleName {
+                Text("Active: \(role)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Button("Refresh") { session.requestSync() }
+                .font(.caption2)
         }
+        .padding()
     }
 }
 

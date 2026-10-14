@@ -12,7 +12,7 @@ public protocol SessionStore: AnyObject, Sendable {
     var currentTokens: AuthTokens? { get }
 }
 
-/// Coordinates local session lifecycle and publishes tokens to the shared Keychain for Watch.
+/// Coordinates local session lifecycle. Watch tokens are delivered via Watch Connectivity.
 public final class SessionController: SessionStore, AccessTokenProviding, @unchecked Sendable {
     private let lock = NSLock()
     private let tokenStore: KeychainTokenStore
@@ -57,7 +57,8 @@ public final class SessionController: SessionStore, AccessTokenProviding, @unche
         lock.lock()
         self.tokens = tokens
         lock.unlock()
-        try tokenStore.save(tokens)
+        // Persistence is best-effort — in-memory session must succeed for Watch companion.
+        try? tokenStore.save(tokens)
     }
 
     public func restoreSession() async throws -> AuthSessionState {

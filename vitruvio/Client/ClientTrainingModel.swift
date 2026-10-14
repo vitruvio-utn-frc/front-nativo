@@ -28,6 +28,7 @@ final class ClientTrainingModel {
     let network: NetworkPathMonitor
 
     private var lastOnline = true
+    nonisolated(unsafe) private var syncObserver: NSObjectProtocol?
 
     init(
         memberId: String,
@@ -46,6 +47,28 @@ final class ClientTrainingModel {
         self.network = pathMonitor
         self.pendingOfflineCount = queue.pendingCount
         self.lastOnline = pathMonitor.isOnline
+        syncObserver = NotificationCenter.default.addObserver(
+            forName: .companionSyncDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.activeSession.reloadFromPersistence()
+                if self.activeSession.activeSessionId != nil {
+                    await self.loadActiveSession()
+                } else {
+                    self.executions = []
+                    self.setsByExecution = [:]
+                }
+            }
+        }
+    }
+
+    deinit {
+        if let syncObserver {
+            NotificationCenter.default.removeObserver(syncObserver)
+        }
     }
 
     var exerciseNameById: [String: String] {
@@ -102,6 +125,10 @@ final class ClientTrainingModel {
             status = "Session started"
             executions = []
             setsByExecution = [:]
+            Task {
+                await CompanionPhoneGateway.shared.publish()
+                await CompanionWatchWorkoutLauncher.openWatchForStrengthTraining()
+            }
             return session
         } catch {
             lastError = error.localizedDescription
@@ -132,6 +159,7 @@ final class ClientTrainingModel {
             }
             setsByExecution = sets
             activeSession.updateCounts(executionCount: executions.count, setCount: totalSets)
+            pushCompanionTraining()
         } catch {
             lastError = error.localizedDescription
         }
@@ -227,6 +255,11 @@ final class ClientTrainingModel {
         executions = []
         setsByExecution = [:]
         status = "Session cleared"
+        pushCompanionTraining()
+    }
+
+    private func pushCompanionTraining() {
+        Task { await CompanionPhoneGateway.shared.publish() }
     }
 
     private func flushOffline() async {

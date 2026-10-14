@@ -26,7 +26,21 @@ struct ClientRootView: View {
 
             NavigationStack {
                 RoleShellChrome(model: model, title: "Client") {
-                    placeholder("Membership & profile land in client-membership-profile")
+                    List {
+                        Section {
+                            NavigationLink {
+                                WatchCompanionStatusView()
+                            } label: {
+                                Label("Apple Watch", systemImage: "applewatch")
+                            }
+                        }
+
+                        Section {
+                            Text("Membership & profile land in client-membership-profile")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .tabItem { Label("Profile", systemImage: "person") }

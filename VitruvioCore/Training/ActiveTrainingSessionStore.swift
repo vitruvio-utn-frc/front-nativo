@@ -1,6 +1,7 @@
 import Foundation
 
-/// In-memory + App Group durable store for the active training session (iPhone + Watch).
+/// In-memory + on-device durable store for the active training session.
+/// Cross-device sync is via Watch Connectivity, not App Group.
 @MainActor
 @Observable
 public final class ActiveTrainingSessionStore {
@@ -16,13 +17,13 @@ public final class ActiveTrainingSessionStore {
     }
 
     public init(
-        defaults: UserDefaults? = UserDefaults(suiteName: AppConfig.appGroupIdentifier),
+        defaults: UserDefaults = .standard,
         fileManager: FileManager = .default
     ) {
-        self.defaults = defaults ?? .standard
-        let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier)
-            ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.fileURL = base.appending(path: "active-training-session.json")
+        self.defaults = defaults
+        self.fileURL = fileManager
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appending(path: "active-training-session.json")
         self.snapshot = Self.load(defaults: self.defaults, fileURL: fileURL)
     }
 
@@ -52,10 +53,19 @@ public final class ActiveTrainingSessionStore {
         persist(current)
     }
 
+    public func replace(with value: ActiveTrainingSessionSnapshot) {
+        snapshot = value
+        persist(value)
+    }
+
     public func clear() {
         snapshot = nil
         defaults.removeObject(forKey: Keys.json)
         try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    public func reloadFromPersistence() {
+        snapshot = Self.load(defaults: defaults, fileURL: fileURL)
     }
 
     private func persist(_ value: ActiveTrainingSessionSnapshot) {
@@ -69,32 +79,6 @@ public final class ActiveTrainingSessionStore {
            let decoded = try? JSONDecoder().decode(ActiveTrainingSessionSnapshot.self, from: data) {
             return decoded
         }
-        if let data = try? Data(contentsOf: fileURL),
-           let decoded = try? JSONDecoder().decode(ActiveTrainingSessionSnapshot.self, from: data) {
-            return decoded
-        }
-        return nil
-    }
-}
-
-/// Read-only App Group access for Watch (and other companions).
-public enum SharedActiveTrainingSessionReader {
-    private enum Keys {
-        static let json = "training.activeSession.json"
-    }
-
-    public static func load(
-        defaults: UserDefaults? = UserDefaults(suiteName: AppConfig.appGroupIdentifier),
-        fileManager: FileManager = .default
-    ) -> ActiveTrainingSessionSnapshot? {
-        let store = defaults ?? .standard
-        if let data = store.data(forKey: Keys.json),
-           let decoded = try? JSONDecoder().decode(ActiveTrainingSessionSnapshot.self, from: data) {
-            return decoded
-        }
-        let base = fileManager.containerURL(forSecurityApplicationGroupIdentifier: AppConfig.appGroupIdentifier)
-            ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = base.appending(path: "active-training-session.json")
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode(ActiveTrainingSessionSnapshot.self, from: data) {
             return decoded

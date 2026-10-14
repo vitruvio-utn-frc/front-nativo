@@ -22,7 +22,7 @@ Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Ma
 | 4 | `gym-context-and-roles` | 3 | Gym/rol activo, switcher, roots client/staff/admin | [x] 2026-10-13 |
 | 5 | `admin-operations` (mínimo: roles) | 4 | **Priorizar** tasks `1.x` (`admin-user-roles`) para desbloquear pending → activo | [x] 2026-10-13 |
 | 6 | `client-training` | 4 | Planes + sesión iPhone + offline; habilita Watch | [x] 2026-10-13 |
-| 7 | `watch-training-companion` | 2, 6 | UI entrenamiento + HealthKit; solo cliente | [ ] |
+| 7 | `watch-training-companion` | 2, 6 | UI entrenamiento + HealthKit; solo cliente | [x] 2026-10-13 |
 | 8 | `client-appointments` | 4 | Puede ir en paralelo con 6/9 tras gym-context | [ ] |
 | 9 | `client-membership-profile` | 4 | Membresías + perfil; sin tarjetas/store | [ ] |
 | 10 | `staff-operations` | 4 | Clientes, ejercicios, planes (crear planes para E2E training) | [ ] |

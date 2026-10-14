@@ -1,11 +1,13 @@
 import Foundation
 
-/// Central configuration for API, Keycloak OIDC, and shared-container identity.
+/// Central configuration for API and Keycloak OIDC.
 /// Views MUST read these values from Core instead of hardcoding auth endpoints.
+/// Companion sync uses Watch Connectivity (not App Group).
 public enum AppConfig {
+    /// Legacy identifier retained for reference only — not used for companion sync.
     public static let appGroupIdentifier = "group.com.santiago-alvarado.vitruvio"
 
-    /// Keychain access-group suffix (Team ID prefix is applied at runtime).
+    /// Legacy Keychain access-group suffix — companion auth uses local Keychain + WCSession.
     public static let keychainAccessGroupSuffix = "com.santiago-alvarado.vitruvio"
 
     public static let apiBaseURL = URL(string: "https://vitruvio.santiago-alvarado.com")!

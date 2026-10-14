@@ -34,18 +34,18 @@ public final class GymContextController: GymContextStore {
     private let defaults: UserDefaults
 
     private enum Keys {
-        static let userId = "gymContext.activeUserId"
-        static let gymId = "gymContext.activeGymId"
-        static let roleId = "gymContext.activeRoleId"
-        static let presentedShell = "gymContext.presentedShell"
+        static let userId = SharedGymContextReader.Keys.userId
+        static let gymId = SharedGymContextReader.Keys.gymId
+        static let roleId = SharedGymContextReader.Keys.roleId
+        static let presentedShell = SharedGymContextReader.Keys.presentedShell
     }
 
     public init(
         api: AuthenticatedAPIClient,
-        defaults: UserDefaults? = UserDefaults(suiteName: AppConfig.appGroupIdentifier)
+        defaults: UserDefaults = .standard
     ) {
         self.api = api
-        self.defaults = defaults ?? .standard
+        self.defaults = defaults
     }
 
     /// Fetches memberships for `userId`, restores a still-valid selection, or auto-selects when only one.
