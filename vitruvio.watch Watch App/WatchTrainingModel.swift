@@ -55,7 +55,8 @@ final class WatchTrainingModel {
     }
 
     func continueActiveSession() async {
-        guard activeSession != nil else { return }
+        guard let session = activeSession else { return }
+        healthKit.companionTrainingSessionId = session.sessionId
         await healthKit.startWorkoutIfAuthorized()
         await refresh()
     }
@@ -72,7 +73,8 @@ final class WatchTrainingModel {
             return false
         }
         apply(snapshot)
-        if activeSession != nil {
+        if let session = activeSession {
+            healthKit.companionTrainingSessionId = session.sessionId
             await healthKit.startWorkoutIfAuthorized()
             status = "Session started"
             return true

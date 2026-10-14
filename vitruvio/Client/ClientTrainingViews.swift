@@ -107,6 +107,12 @@ struct ClientTrainingHomeView: View {
                 } else {
                     Text("Plan not found")
                 }
+            case .session(let id):
+                if model.isActiveSession(id) {
+                    ActiveTrainingSessionView(model: model)
+                } else {
+                    PastTrainingSessionView(model: model, sessionId: id)
+                }
             }
         }
         .navigationDestination(isPresented: $showActiveSession) {
@@ -122,6 +128,7 @@ struct ClientTrainingHomeView: View {
 
 private enum TrainingRoute: Hashable {
     case plan(String)
+    case session(String)
 }
 
 struct TrainingPlanDetailView: View {
@@ -148,9 +155,16 @@ struct TrainingPlanDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(model.planSessions) { session in
-                        Text(session.id)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        NavigationLink(value: TrainingRoute.session(session.id)) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(model.isActiveSession(session.id) ? "Active session" : "Session")
+                                    .font(.subheadline)
+                                Text(session.id)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
                 }
             }
@@ -179,10 +193,64 @@ struct TrainingPlanDetailView: View {
     }
 }
 
+struct PastTrainingSessionView: View {
+    @Bindable var model: ClientTrainingModel
+    let sessionId: String
+
+    var body: some View {
+        List {
+            Section("Session") {
+                LabeledContent("Session id", value: sessionId)
+            }
+            if let error = model.lastError {
+                Section { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+            Section("Exercises") {
+                if model.isLoading && model.detailExecutions.isEmpty {
+                    ProgressView()
+                } else if model.detailExecutions.isEmpty {
+                    Text("No exercises logged in this session.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.detailExecutions) { execution in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(model.exerciseNameById[execution.exerciseId] ?? execution.exerciseId)
+                                .font(.headline)
+                            let sets = model.detailSetsByExecution[execution.id] ?? []
+                            if sets.isEmpty {
+                                Text("No sets")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(sets.map { "\($0.reps) reps" }.joined(separator: " · "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Session")
+        .navigationBarTitleDisplayMode(.inline)
+        .overlay { if model.isLoading { ProgressView() } }
+        .task { await model.loadSessionDetail(sessionId: sessionId) }
+        .refreshable { await model.loadSessionDetail(sessionId: sessionId) }
+    }
+}
+
 struct ActiveTrainingSessionView: View {
     @Bindable var model: ClientTrainingModel
     @State private var showAddExercise = false
     @State private var repsText: [String: String] = [:]
+    @State private var vitalsRefresh = Date()
+
+    private var watchMetrics: CompanionWorkoutMetrics? {
+        _ = vitalsRefresh
+        return WatchConnectivityBridge.shared.displayableWorkoutMetrics
+    }
 
     var body: some View {
         List {
@@ -196,6 +264,22 @@ struct ActiveTrainingSessionView: View {
                 Section {
                     Text("No active session")
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if let metrics = watchMetrics {
+                Section("Apple Watch") {
+                    WatchVitalsStrip(metrics: metrics)
+                }
+            } else if model.activeSession.snapshot != nil {
+                Section("Apple Watch") {
+                    Text(
+                        WatchConnectivityBridge.shared.isReachable
+                            ? "Waiting for Watch workout…"
+                            : "Watch not linked"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
 
@@ -304,5 +388,48 @@ struct ActiveTrainingSessionView: View {
         .task(id: model.network.isOnline) {
             await model.onNetworkTick()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .companionWorkoutMetricsDidUpdate)) { _ in
+            vitalsRefresh = Date()
+        }
+        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
+            vitalsRefresh = Date()
+        }
+    }
+}
+
+private struct WatchVitalsStrip: View {
+    let metrics: CompanionWorkoutMetrics
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let bpm = metrics.heartRateBPM {
+                LabeledContent("Heart rate", value: "\(Int(bpm.rounded())) bpm")
+            }
+            if let elapsed = metrics.elapsedSeconds {
+                LabeledContent("Workout time", value: Self.formatElapsed(elapsed))
+            }
+            if let kcal = metrics.activeEnergyKilocalories {
+                LabeledContent("Active energy", value: "\(Int(kcal.rounded())) kcal")
+            }
+            if metrics.heartRateBPM == nil,
+               metrics.elapsedSeconds == nil,
+               metrics.activeEnergyKilocalories == nil
+            {
+                Text("Watch workout active — no samples yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private static func formatElapsed(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%d:%02d", m, s)
     }
 }

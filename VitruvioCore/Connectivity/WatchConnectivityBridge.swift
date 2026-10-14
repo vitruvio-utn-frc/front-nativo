@@ -141,6 +141,43 @@ public enum CompanionSyncEvent: String, Sendable {
 
 public extension Notification.Name {
     static let companionSyncDidUpdate = Notification.Name("vitruvio.companionSyncDidUpdate")
+    static let companionWorkoutMetricsDidUpdate = Notification.Name("vitruvio.companionWorkoutMetricsDidUpdate")
+}
+
+/// Live Watch HealthKit vitals for iPhone display only (not training API payload).
+public struct CompanionWorkoutMetrics: Equatable, Sendable {
+    public var updatedAt: Date
+    public var trainingSessionId: String?
+    public var heartRateBPM: Double?
+    public var elapsedSeconds: TimeInterval?
+    public var activeEnergyKilocalories: Double?
+    public var isWorkoutActive: Bool
+
+    public init(
+        updatedAt: Date = Date(),
+        trainingSessionId: String? = nil,
+        heartRateBPM: Double? = nil,
+        elapsedSeconds: TimeInterval? = nil,
+        activeEnergyKilocalories: Double? = nil,
+        isWorkoutActive: Bool = false
+    ) {
+        self.updatedAt = updatedAt
+        self.trainingSessionId = trainingSessionId
+        self.heartRateBPM = heartRateBPM
+        self.elapsedSeconds = elapsedSeconds
+        self.activeEnergyKilocalories = activeEnergyKilocalories
+        self.isWorkoutActive = isWorkoutActive
+    }
+
+    /// Fresh enough for iPhone vitals strip (~30s).
+    public func isFresh(asOf date: Date = Date(), maxAge: TimeInterval = 30) -> Bool {
+        date.timeIntervalSince(updatedAt) <= maxAge
+    }
+
+    public var isDisplayable: Bool {
+        isWorkoutActive && isFresh()
+            && (heartRateBPM != nil || elapsedSeconds != nil || activeEnergyKilocalories != nil)
+    }
 }
 
 /// Applies companion UI state locally (training mirror only — never auth tokens).
@@ -209,6 +246,14 @@ public final class WatchConnectivityBridge: NSObject {
     public private(set) var lastPushedAt: Date?
     public private(set) var lastPushSummary: String?
     public private(set) var receivedContextSummary: String?
+    /// Watch → iPhone vitals (display only).
+    public private(set) var lastWorkoutMetrics: CompanionWorkoutMetrics?
+
+    /// Metrics suitable for the active-session vitals strip.
+    public var displayableWorkoutMetrics: CompanionWorkoutMetrics? {
+        guard let metrics = lastWorkoutMetrics, metrics.isDisplayable else { return nil }
+        return metrics
+    }
 
     /// iPhone installs this to answer Watch `request` / `action` messages (API stays on phone).
     public var phoneMessageHandler: (([String: Any]) async -> [String: Any])?
@@ -400,6 +445,39 @@ public final class WatchConnectivityBridge: NSObject {
         return lastReceivedSnapshot != nil
 #else
         return false
+#endif
+    }
+
+    /// Watch publishes live HK vitals for iPhone display (throttled by caller).
+    public func publishWorkoutMetrics(_ metrics: CompanionWorkoutMetrics) {
+#if canImport(WatchConnectivity) && os(watchOS)
+        guard let session, session.activationState == .activated else { return }
+        var dict: [String: Any] = [
+            "kind": "workoutMetrics",
+            "updatedAt": metrics.updatedAt.timeIntervalSince1970,
+            "isWorkoutActive": metrics.isWorkoutActive,
+        ]
+        if let trainingSessionId = metrics.trainingSessionId {
+            dict["trainingSessionId"] = trainingSessionId
+        }
+        if let heartRateBPM = metrics.heartRateBPM {
+            dict["heartRateBPM"] = heartRateBPM
+        }
+        if let elapsedSeconds = metrics.elapsedSeconds {
+            dict["elapsedSeconds"] = elapsedSeconds
+        }
+        if let activeEnergyKilocalories = metrics.activeEnergyKilocalories {
+            dict["activeEnergyKilocalories"] = activeEnergyKilocalories
+        }
+
+        if session.isReachable {
+            session.sendMessage(dict, replyHandler: { _ in }, errorHandler: { _ in })
+        } else if session.outstandingUserInfoTransfers.count < 2 {
+            _ = session.transferUserInfo(dict)
+        }
+#endif
+#if os(watchOS)
+        lastWorkoutMetrics = metrics
 #endif
     }
 
@@ -644,6 +722,10 @@ public final class WatchConnectivityBridge: NSObject {
     }
 
     private func handleIncoming(_ dict: [String: Any], force: Bool = false) {
+        if dict["kind"] as? String == "workoutMetrics" {
+            applyWorkoutMetrics(from: dict)
+            return
+        }
 #if os(iOS)
         // Phone must handle Watch pings that arrive via userInfo (not only sendMessage).
         if dict["request"] != nil || dict["action"] != nil, dict["hasAuth"] == nil {
@@ -671,6 +753,36 @@ public final class WatchConnectivityBridge: NSObject {
         lastError = nil
         CompanionStateApplier.apply(snapshot)
         NotificationCenter.default.post(name: .companionSyncDidUpdate, object: snapshot)
+    }
+
+    private func applyWorkoutMetrics(from dict: [String: Any]) {
+        let updatedAt: Date
+        if let interval = dict["updatedAt"] as? TimeInterval {
+            updatedAt = Date(timeIntervalSince1970: interval)
+        } else if let number = dict["updatedAt"] as? NSNumber {
+            updatedAt = Date(timeIntervalSince1970: number.doubleValue)
+        } else {
+            updatedAt = Date()
+        }
+        let isActive = (dict["isWorkoutActive"] as? Bool)
+            ?? (dict["isWorkoutActive"] as? NSNumber)?.boolValue
+            ?? false
+        let metrics = CompanionWorkoutMetrics(
+            updatedAt: updatedAt,
+            trainingSessionId: dict["trainingSessionId"] as? String,
+            heartRateBPM: Self.doubleValue(dict["heartRateBPM"]),
+            elapsedSeconds: Self.doubleValue(dict["elapsedSeconds"]),
+            activeEnergyKilocalories: Self.doubleValue(dict["activeEnergyKilocalories"]),
+            isWorkoutActive: isActive
+        )
+        lastWorkoutMetrics = metrics
+        NotificationCenter.default.post(name: .companionWorkoutMetricsDidUpdate, object: metrics)
+    }
+
+    private static func doubleValue(_ any: Any?) -> Double? {
+        if let value = any as? Double { return value }
+        if let number = any as? NSNumber { return number.doubleValue }
+        return nil
     }
 
     private func handlePhoneMessage(

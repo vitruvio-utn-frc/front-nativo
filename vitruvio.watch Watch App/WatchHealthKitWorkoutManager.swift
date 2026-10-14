@@ -6,6 +6,7 @@
 import Foundation
 import HealthKit
 import Observation
+import VitruvioCore
 
 /// Runs a Watch strength `HKWorkoutSession` and surfaces live heart rate.
 @MainActor
@@ -23,6 +24,9 @@ final class WatchHealthKitWorkoutManager: NSObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    private var vitalsPublishTask: Task<Void, Never>?
+    /// Optional training session id tagged onto companion vitals.
+    var companionTrainingSessionId: String?
 
     private(set) var authorizationState: AuthorizationState = .notDetermined
     private(set) var isWorkoutActive = false
@@ -105,6 +109,7 @@ final class WatchHealthKitWorkoutManager: NSObject {
             try await workoutBuilder.beginCollection(at: start)
             isWorkoutActive = true
             heartRateBPM = nil
+            startVitalsPublisher()
         } catch {
             session = nil
             builder = nil
@@ -117,6 +122,8 @@ final class WatchHealthKitWorkoutManager: NSObject {
         let started = workoutStartedAt ?? Date()
         let duration = Date().timeIntervalSince(started)
         let calories = totalEnergyBurnedKilocalories
+
+        stopVitalsPublisher(publishFinal: true)
 
         guard let session, let builder else {
             resetLocalState()
@@ -133,6 +140,44 @@ final class WatchHealthKitWorkoutManager: NSObject {
 
         resetLocalState()
         return (duration, calories)
+    }
+
+    private func startVitalsPublisher() {
+        vitalsPublishTask?.cancel()
+        vitalsPublishTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.isWorkoutActive else { break }
+                self.publishCompanionVitals(isActive: true)
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        }
+    }
+
+    private func stopVitalsPublisher(publishFinal: Bool) {
+        vitalsPublishTask?.cancel()
+        vitalsPublishTask = nil
+        if publishFinal {
+            publishCompanionVitals(isActive: false)
+        }
+    }
+
+    private func publishCompanionVitals(isActive: Bool) {
+        let elapsed: TimeInterval?
+        if let started = workoutStartedAt {
+            elapsed = Date().timeIntervalSince(started)
+        } else {
+            elapsed = nil
+        }
+        let metrics = CompanionWorkoutMetrics(
+            trainingSessionId: companionTrainingSessionId,
+            heartRateBPM: heartRateBPM,
+            elapsedSeconds: elapsed,
+            activeEnergyKilocalories: totalEnergyBurnedKilocalories > 0
+                ? totalEnergyBurnedKilocalories
+                : nil,
+            isWorkoutActive: isActive
+        )
+        WatchConnectivityBridge.shared.publishWorkoutMetrics(metrics)
     }
 
     private func resetLocalState() {

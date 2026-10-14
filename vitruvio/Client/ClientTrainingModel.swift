@@ -14,6 +14,10 @@ final class ClientTrainingModel {
     private(set) var planSessions: [TrainingSessionDTO] = []
     private(set) var executions: [ExerciseExecutionDTO] = []
     private(set) var setsByExecution: [String: [ExerciseSetDTO]] = [:]
+    /// History detail (separate from active-session `executions` so browsing doesn't clobber logging).
+    private(set) var detailSessionId: String?
+    private(set) var detailExecutions: [ExerciseExecutionDTO] = []
+    private(set) var detailSetsByExecution: [String: [ExerciseSetDTO]] = [:]
     private(set) var exercises: [ExerciseDTO] = []
     private(set) var isLoading = false
     private(set) var isWorking = false
@@ -109,6 +113,34 @@ final class ClientTrainingModel {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    func loadSessionDetail(sessionId: String) async {
+        isLoading = true
+        lastError = nil
+        defer { isLoading = false }
+        detailSessionId = sessionId
+        do {
+            if exercises.isEmpty {
+                exercises = try await service.listExercises()
+            }
+            _ = try? await service.getSession(id: sessionId)
+            let listed = try await service.listExecutions(forSessionId: sessionId)
+            var sets: [String: [ExerciseSetDTO]] = [:]
+            for execution in listed {
+                sets[execution.id] = try await service.listSets(forExecutionId: execution.id)
+            }
+            detailExecutions = listed
+            detailSetsByExecution = sets
+        } catch {
+            lastError = error.localizedDescription
+            detailExecutions = []
+            detailSetsByExecution = [:]
+        }
+    }
+
+    func isActiveSession(_ sessionId: String) -> Bool {
+        activeSession.activeSessionId == sessionId
     }
 
     func startSession(plan: TrainingPlanDTO) async -> TrainingSessionDTO? {

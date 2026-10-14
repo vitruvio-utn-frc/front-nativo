@@ -31,6 +31,9 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
         Task { @MainActor in
             WatchConnectivityBridge.shared.requestFullSyncFromPhone()
+            if let sessionId = WatchConnectivityBridge.shared.lastReceivedSnapshot?.trainingSessionId {
+                WatchHealthKitWorkoutManager.shared.companionTrainingSessionId = sessionId
+            }
             await WatchHealthKitWorkoutManager.shared.startWorkoutIfAuthorized(
                 configuration: workoutConfiguration
             )
