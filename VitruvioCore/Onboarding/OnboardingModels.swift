@@ -63,6 +63,11 @@ public struct UserDTO: Codable, Sendable, Identifiable, Hashable {
     public let firstName: String?
     public let lastName: String?
     public let idNumber: Int?
+    public let height: Double?
+    public let weight: Double?
+    public let birthDate: Date?
+    public let genderId: Int?
+    public let photoUrl: String?
 
     public var displayName: String {
         let parts = [firstName, lastName].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
@@ -77,6 +82,11 @@ public struct UserDTO: Codable, Sendable, Identifiable, Hashable {
         firstName = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("firstName"))
         lastName = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("lastName"))
         idNumber = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("idNumber"))
+        height = try container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("height"))
+        weight = try container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("weight"))
+        birthDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("birthDate"))
+        genderId = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("genderId"))
+        photoUrl = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("photoUrl"))
     }
 }
 

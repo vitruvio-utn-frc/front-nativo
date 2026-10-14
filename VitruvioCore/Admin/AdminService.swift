@@ -122,6 +122,29 @@ public struct AdminService: Sendable {
         try await api.delete("api/gym-memberships/\(gymId)/\(membershipId)")
     }
 
+    public func listGenders() async throws -> [GenderDTO] {
+        try await api.get("api/genders")
+    }
+
+    public func listUserMemberships() async throws -> [UserMembershipDTO] {
+        try await api.get("api/user-memberships")
+    }
+
+    public func listUserMemberships(forMemberId memberId: String) async throws -> [UserMembershipDTO] {
+        let all = try await listUserMemberships()
+        return all
+            .filter { $0.memberId.caseInsensitiveCompare(memberId) == .orderedSame }
+            .sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+    }
+
+    public func createUserMembership(_ request: CreateUserMembershipRequest) async throws -> UserMembershipDTO {
+        try await api.post("api/user-memberships", body: request)
+    }
+
+    public func deleteUserMembership(id: String) async throws {
+        try await api.delete("api/user-memberships/\(id)")
+    }
+
     // MARK: - Machines
 
     public func listMachineTypes() async throws -> [MachineTypeDTO] {

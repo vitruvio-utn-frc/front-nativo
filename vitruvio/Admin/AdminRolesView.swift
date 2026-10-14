@@ -11,7 +11,6 @@ struct AdminRolesView: View {
     @State private var query = ""
     @State private var showPendingOnly = false
     @State private var manageTarget: AdminDirectoryUser?
-    @State private var selectedRole: AppRole = .cliente
     @State private var pendingRevoke: PendingRoleRevoke?
     @State private var actionError: String?
     @State private var actionStatus: String?
@@ -25,11 +24,6 @@ struct AdminRolesView: View {
             return row.user.displayName.lowercased().contains(q)
                 || (row.user.email?.lowercased().contains(q) ?? false)
         }
-    }
-
-    private var freshManageTarget: AdminDirectoryUser? {
-        guard let manageTarget else { return nil }
-        return admin.directory.first { $0.id == manageTarget.id } ?? manageTarget
     }
 
     var body: some View {
@@ -49,13 +43,12 @@ struct AdminRolesView: View {
 
             Section(showPendingOnly ? "Pending users" : "Users") {
                 if filtered.isEmpty {
-                    Text("No users match")
+                    Text(admin.isLoading ? "Loading users…" : "No users match")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(filtered) { row in
                     Button {
                         manageTarget = row
-                        selectedRole = .cliente
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -96,20 +89,91 @@ struct AdminRolesView: View {
         }
         .navigationTitle("Roles")
         .refreshable { await admin.reloadDirectory() }
-        .overlay { if isWorking || admin.isLoading { ProgressView() } }
-        .sheet(item: $manageTarget) { _ in
-            if let target = freshManageTarget {
-                manageRolesSheet(for: target)
+        .toolbar {
+            if isWorking || admin.isLoading {
+                ToolbarItem(placement: .status) {
+                    ProgressView()
+                }
             }
         }
-        .modifier(RevokeRoleConfirmation(pending: $pendingRevoke, gymName: admin.gymName) { pending in
-            await revoke(pending)
-        })
+        .sheet(item: $manageTarget) { target in
+            ManageRolesSheet(
+                admin: admin,
+                userId: target.id,
+                initialUser: target
+            ) {
+                manageTarget = nil
+            } onAssigned: { roleName, displayName in
+                actionStatus = "Assigned \(roleName) to \(displayName)"
+                actionError = nil
+            } onRevoked: { roleName, displayName in
+                actionStatus = "Revoked \(roleName) from \(displayName)"
+                actionError = nil
+            }
+        }
+        .confirmationDialog(
+            "Revoke role?",
+            isPresented: Binding(
+                get: { pendingRevoke != nil && manageTarget == nil },
+                set: { if !$0 { pendingRevoke = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let pending = pendingRevoke {
+                Button("Revoke \(pending.role.name)", role: .destructive) {
+                    Task { await revokeFromList(pending) }
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingRevoke = nil
+            }
+        } message: {
+            if let pending = pendingRevoke {
+                Text("Remove “\(pending.role.name)” from \(pending.user.user.displayName) in \(admin.gymName).")
+            }
+        }
         .task { await admin.reloadDirectory() }
     }
 
-    @ViewBuilder
-    private func manageRolesSheet(for target: AdminDirectoryUser) -> some View {
+    private func revokeFromList(_ pending: PendingRoleRevoke) async {
+        isWorking = true
+        actionError = nil
+        defer {
+            isWorking = false
+            pendingRevoke = nil
+        }
+        do {
+            try await admin.service.revokeRole(
+                userId: pending.user.user.id,
+                gymId: admin.gymId,
+                roleId: pending.role.id
+            )
+            actionStatus = "Revoked \(pending.role.name) from \(pending.user.user.displayName)"
+            await admin.reloadDirectory()
+        } catch {
+            actionError = error.localizedDescription
+        }
+    }
+}
+
+private struct ManageRolesSheet: View {
+    @Bindable var admin: AdminWorkspaceModel
+    let userId: String
+    let initialUser: AdminDirectoryUser
+    var onDone: () -> Void
+    var onAssigned: (String, String) -> Void
+    var onRevoked: (String, String) -> Void
+
+    @State private var selectedRole: AppRole = .cliente
+    @State private var pendingRevoke: PendingRoleRevoke?
+    @State private var actionError: String?
+    @State private var isWorking = false
+
+    private var target: AdminDirectoryUser {
+        admin.directory.first { $0.id == userId } ?? initialUser
+    }
+
+    var body: some View {
         NavigationStack {
             Form {
                 Section("User") {
@@ -149,7 +213,7 @@ struct AdminRolesView: View {
                         }
                     }
                     Button("Assign \(selectedRole.name)") {
-                        Task { await assign(to: target) }
+                        Task { await assign() }
                     }
                     .disabled(isWorking || target.rolesInGym.contains(selectedRole))
                 }
@@ -164,21 +228,43 @@ struct AdminRolesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { manageTarget = nil }
+                    Button("Done", action: onDone)
+                }
+                if isWorking {
+                    ToolbarItem(placement: .status) {
+                        ProgressView()
+                    }
                 }
             }
-            .overlay { if isWorking { ProgressView() } }
-            .modifier(RevokeRoleConfirmation(pending: $pendingRevoke, gymName: admin.gymName) { pending in
-                await revoke(pending)
-            })
+            .confirmationDialog(
+                "Revoke role?",
+                isPresented: Binding(
+                    get: { pendingRevoke != nil },
+                    set: { if !$0 { pendingRevoke = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let pending = pendingRevoke {
+                    Button("Revoke \(pending.role.name)", role: .destructive) {
+                        Task { await revoke(pending) }
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingRevoke = nil
+                }
+            } message: {
+                if let pending = pendingRevoke {
+                    Text("Remove “\(pending.role.name)” from \(pending.user.user.displayName) in \(admin.gymName).")
+                }
+            }
         }
         .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(isWorking)
     }
 
-    private func assign(to target: AdminDirectoryUser) async {
+    private func assign() async {
         isWorking = true
         actionError = nil
-        actionStatus = nil
         defer { isWorking = false }
         do {
             try await admin.service.assignRole(
@@ -186,11 +272,8 @@ struct AdminRolesView: View {
                 gymId: admin.gymId,
                 roleId: selectedRole.id
             )
-            actionStatus = "Assigned \(selectedRole.name) to \(target.user.displayName)"
+            onAssigned(selectedRole.name, target.user.displayName)
             await admin.reloadDirectory()
-            if let updated = admin.directory.first(where: { $0.id == target.id }) {
-                manageTarget = updated
-            }
         } catch {
             actionError = error.localizedDescription
         }
@@ -199,7 +282,6 @@ struct AdminRolesView: View {
     private func revoke(_ pending: PendingRoleRevoke) async {
         isWorking = true
         actionError = nil
-        actionStatus = nil
         defer {
             isWorking = false
             pendingRevoke = nil
@@ -210,12 +292,8 @@ struct AdminRolesView: View {
                 gymId: admin.gymId,
                 roleId: pending.role.id
             )
-            actionStatus = "Revoked \(pending.role.name) from \(pending.user.user.displayName)"
+            onRevoked(pending.role.name, pending.user.user.displayName)
             await admin.reloadDirectory()
-            if let id = manageTarget?.id,
-               let updated = admin.directory.first(where: { $0.id == id }) {
-                manageTarget = updated
-            }
         } catch {
             actionError = error.localizedDescription
         }
@@ -227,35 +305,4 @@ private struct PendingRoleRevoke: Identifiable {
     let role: AppRole
 
     var id: String { "\(user.id)|\(role.id)" }
-}
-
-private struct RevokeRoleConfirmation: ViewModifier {
-    @Binding var pending: PendingRoleRevoke?
-    let gymName: String
-    var onConfirm: (PendingRoleRevoke) async -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .confirmationDialog(
-                "Revoke role?",
-                isPresented: Binding(
-                    get: { pending != nil },
-                    set: { if !$0 { pending = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                if let pending {
-                    Button("Revoke \(pending.role.name)", role: .destructive) {
-                        Task { await onConfirm(pending) }
-                    }
-                }
-                Button("Cancel", role: .cancel) {
-                    pending = nil
-                }
-            } message: {
-                if let pending {
-                    Text("Remove “\(pending.role.name)” from \(pending.user.user.displayName) in \(gymName).")
-                }
-            }
-    }
 }

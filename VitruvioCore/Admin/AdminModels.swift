@@ -188,6 +188,44 @@ public struct GymMembershipLinkDTO: Codable, Sendable, Identifiable, Hashable {
     }
 }
 
+public struct UserMembershipDTO: Codable, Sendable, Identifiable, Hashable {
+    public let id: String
+    public let memberId: String
+    public let membershipId: String
+    public let startDate: Date?
+    public let endDate: Date?
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
+        id = try container.decodeLosslessString(forKey: DynamicCodingKeys("id"))
+        memberId = try container.decodeLosslessString(forKey: DynamicCodingKeys("memberId"))
+        membershipId = try container.decodeLosslessString(forKey: DynamicCodingKeys("membershipId"))
+        startDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("startDate"))
+        endDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("endDate"))
+    }
+
+    public var isActive: Bool {
+        let now = Date()
+        if let startDate, startDate > now { return false }
+        if let endDate, endDate < now { return false }
+        return true
+    }
+}
+
+public struct CreateUserMembershipRequest: Encodable, Sendable {
+    public var memberId: String
+    public var membershipId: String
+    public var startDate: Date
+    public var endDate: Date
+
+    public init(memberId: String, membershipId: String, startDate: Date, endDate: Date) {
+        self.memberId = memberId
+        self.membershipId = membershipId
+        self.startDate = startDate
+        self.endDate = endDate
+    }
+}
+
 public struct CreateGymMembershipLinkRequest: Encodable, Sendable {
     public var gymId: String
     public var membershipId: String
@@ -278,11 +316,13 @@ public struct CreateMachineRequest: Encodable, Sendable {
 public struct ActivityTypeDTO: Codable, Sendable, Identifiable, Hashable {
     public let id: Int
     public let name: String
+    public let description: String?
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
         id = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("id")) ?? 0
         name = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("name")) ?? String(id)
+        description = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("description"))
     }
 }
 
