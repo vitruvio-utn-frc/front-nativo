@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4A6C2451307EC70D00AD01B4 /* vitruvio.watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 4A6C2444307EC70800AD01B4 /* vitruvio.watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4A6C2451307EC70D00AD01B4 /* vitruvio Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4A6C2464307ECAAD00AD01B4 /* VitruvioCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */; };
 		4A6C2465307ECAAD00AD01B4 /* VitruvioCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		4A6C2469307ECAC900AD01B4 /* VitruvioCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */; };
@@ -15,12 +15,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		4A6C244F307EC70D00AD01B4 /* PBXContainerItemProxy */ = {
+		4A6BCD4D30806DBD0092ACF4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 4A6C2424307EC6B900AD01B4 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 4A6C2443307EC70800AD01B4;
-			remoteInfo = "vitruvio.watch Watch App";
+			remoteInfo = "vitruvio Watch App";
 		};
 		4A6C2466307ECAAD00AD01B4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -45,7 +45,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				4A6C2451307EC70D00AD01B4 /* vitruvio.watch Watch App.app in Embed Watch Content */,
+				4A6C2451307EC70D00AD01B4 /* vitruvio Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -76,11 +76,25 @@
 
 /* Begin PBXFileReference section */
 		4A6C242C307EC6B900AD01B4 /* vitruvio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = vitruvio.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		4A6C2444307EC70800AD01B4 /* vitruvio.watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "vitruvio.watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "vitruvio Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = VitruvioCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4A6BCD4B30806B490092ACF4 /* Exceptions for "vitruvio Watch App" folder in "vitruvio Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			platformFiltersByRelativePath = {
+				iconos.icon = (watchos, );
+			};
+			target = 4A6C2443307EC70800AD01B4 /* vitruvio Watch App */;
+		};
+		4A6BCD4C30806B500092ACF4 /* Exceptions for "vitruvio" folder in "vitruvio" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			platformFiltersByRelativePath = {
+				iconos.icon = (ios, );
+			};
+			target = 4A6C242B307EC6B900AD01B4 /* vitruvio */;
+		};
 		4A6C245F307EC94C00AD01B4 /* Exceptions for "VitruvioCore" folder in "VitruvioCore" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			publicHeaders = (
@@ -93,12 +107,18 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4A6C242E307EC6B900AD01B4 /* vitruvio */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4A6BCD4C30806B500092ACF4 /* Exceptions for "vitruvio" folder in "vitruvio" target */,
+			);
 			path = vitruvio;
 			sourceTree = "<group>";
 		};
-		4A6C2445307EC70800AD01B4 /* vitruvio.watch Watch App */ = {
+		4A6C2445307EC70800AD01B4 /* vitruvio Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "vitruvio.watch Watch App";
+			exceptions = (
+				4A6BCD4B30806B490092ACF4 /* Exceptions for "vitruvio Watch App" folder in "vitruvio Watch App" target */,
+			);
+			path = "vitruvio Watch App";
 			sourceTree = "<group>";
 		};
 		4A6C245C307EC94C00AD01B4 /* VitruvioCore */ = {
@@ -142,7 +162,7 @@
 			isa = PBXGroup;
 			children = (
 				4A6C242E307EC6B900AD01B4 /* vitruvio */,
-				4A6C2445307EC70800AD01B4 /* vitruvio.watch Watch App */,
+				4A6C2445307EC70800AD01B4 /* vitruvio Watch App */,
 				4A6C245C307EC94C00AD01B4 /* VitruvioCore */,
 				4A6C2463307ECAAD00AD01B4 /* Frameworks */,
 				4A6C242D307EC6B900AD01B4 /* Products */,
@@ -153,7 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				4A6C242C307EC6B900AD01B4 /* vitruvio.app */,
-				4A6C2444307EC70800AD01B4 /* vitruvio.watch Watch App.app */,
+				4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */,
 				4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */,
 			);
 			name = Products;
@@ -192,8 +212,8 @@
 			buildRules = (
 			);
 			dependencies = (
-				4A6C2450307EC70D00AD01B4 /* PBXTargetDependency */,
 				4A6C246C307ECAC900AD01B4 /* PBXTargetDependency */,
+				4A6BCD4E30806DBD0092ACF4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				4A6C242E307EC6B900AD01B4 /* vitruvio */,
@@ -205,9 +225,9 @@
 			productReference = 4A6C242C307EC6B900AD01B4 /* vitruvio.app */;
 			productType = "com.apple.product-type.application";
 		};
-		4A6C2443307EC70800AD01B4 /* vitruvio.watch Watch App */ = {
+		4A6C2443307EC70800AD01B4 /* vitruvio Watch App */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 4A6C2452307EC70D00AD01B4 /* Build configuration list for PBXNativeTarget "vitruvio.watch Watch App" */;
+			buildConfigurationList = 4A6C2452307EC70D00AD01B4 /* Build configuration list for PBXNativeTarget "vitruvio Watch App" */;
 			buildPhases = (
 				4A6C2440307EC70800AD01B4 /* Sources */,
 				4A6C2441307EC70800AD01B4 /* Frameworks */,
@@ -220,13 +240,13 @@
 				4A6C2467307ECAAD00AD01B4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				4A6C2445307EC70800AD01B4 /* vitruvio.watch Watch App */,
+				4A6C2445307EC70800AD01B4 /* vitruvio Watch App */,
 			);
-			name = "vitruvio.watch Watch App";
+			name = "vitruvio Watch App";
 			packageProductDependencies = (
 			);
-			productName = "vitruvio.watch Watch App";
-			productReference = 4A6C2444307EC70800AD01B4 /* vitruvio.watch Watch App.app */;
+			productName = "vitruvio Watch App";
+			productReference = 4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 		4A6C245A307EC94B00AD01B4 /* VitruvioCore */ = {
@@ -288,7 +308,7 @@
 			projectRoot = "";
 			targets = (
 				4A6C242B307EC6B900AD01B4 /* vitruvio */,
-				4A6C2443307EC70800AD01B4 /* vitruvio.watch Watch App */,
+				4A6C2443307EC70800AD01B4 /* vitruvio Watch App */,
 				4A6C245A307EC94B00AD01B4 /* VitruvioCore */,
 			);
 		};
@@ -343,10 +363,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		4A6C2450307EC70D00AD01B4 /* PBXTargetDependency */ = {
+		4A6BCD4E30806DBD0092ACF4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 4A6C2443307EC70800AD01B4 /* vitruvio.watch Watch App */;
-			targetProxy = 4A6C244F307EC70D00AD01B4 /* PBXContainerItemProxy */;
+			target = 4A6C2443307EC70800AD01B4 /* vitruvio Watch App */;
+			targetProxy = 4A6BCD4D30806DBD0092ACF4 /* PBXContainerItemProxy */;
 		};
 		4A6C2467307ECAAD00AD01B4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -478,36 +498,44 @@
 		4A6C243E307EC6BB00AD01B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = iconos;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = vitruvio/vitruvio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"vitruvio/Preview Content\"";
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/vitruvio-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Vitruvio;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio opens Apple Watch to run your strength workout and show heart rate during training.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio coordinates strength workouts with Apple Watch and Apple Health.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio-1";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -517,36 +545,44 @@
 		4A6C243F307EC6BB00AD01B4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = iconos;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = vitruvio/vitruvio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"vitruvio/Preview Content\"";
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/vitruvio-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Vitruvio;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio opens Apple Watch to run your strength workout and show heart rate during training.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio coordinates strength workouts with Apple Watch and Apple Health.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio-1";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -556,27 +592,28 @@
 		4A6C2453307EC70D00AD01B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = iconos;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "vitruvio.watch Watch App/vitruvio.watch.entitlements";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "vitruvio Watch App/vitruvio.watch.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"vitruvio.watch Watch App/Preview Content\"";
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_ASSET_PATHS = "\"vitruvio Watch App/Preview Content\"";
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = vitruvio.watch;
+				INFOPLIST_KEY_CFBundleDisplayName = Vitruvio;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio uses HealthKit to run your strength workout and show heart rate during training.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio saves strength workouts to Apple Health when you train on Apple Watch.";
 				INFOPLIST_KEY_UIBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio-1";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio-1.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -590,27 +627,28 @@
 		4A6C2454307EC70D00AD01B4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = iconos;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "vitruvio.watch Watch App/vitruvio.watch.entitlements";
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "vitruvio Watch App/vitruvio.watch.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"vitruvio.watch Watch App/Preview Content\"";
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_ASSET_PATHS = "\"vitruvio Watch App/Preview Content\"";
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = vitruvio.watch;
+				INFOPLIST_KEY_CFBundleDisplayName = Vitruvio;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Vitruvio uses HealthKit to run your strength workout and show heart rate during training.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Vitruvio saves strength workouts to Apple Health when you train on Apple Watch.";
 				INFOPLIST_KEY_UIBackgroundModes = "workout-processing";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.santiago-alvarado.vitruvio-1";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.vitruvio-1.watchkitapp";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -630,7 +668,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -646,7 +684,7 @@
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCore";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCore-1";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -670,7 +708,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = YES;
-				DEVELOPMENT_TEAM = 6UNX2B9T8S;
+				DEVELOPMENT_TEAM = VKL872QRB9;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -686,7 +724,7 @@
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCore";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCore-1";
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SDKROOT = auto;
 				SKIP_INSTALL = YES;
@@ -723,7 +761,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		4A6C2452307EC70D00AD01B4 /* Build configuration list for PBXNativeTarget "vitruvio.watch Watch App" */ = {
+		4A6C2452307EC70D00AD01B4 /* Build configuration list for PBXNativeTarget "vitruvio Watch App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4A6C2453307EC70D00AD01B4 /* Debug */,
