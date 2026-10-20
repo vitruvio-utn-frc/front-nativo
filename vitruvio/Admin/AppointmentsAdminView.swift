@@ -42,12 +42,12 @@ struct AppointmentsAdminView: View {
                 Section { Text(error).foregroundStyle(.red).font(.caption) }
             }
 
-            Section("Activity types") {
+            Section("Tipos de actividad") {
                 if activityTypes.isEmpty {
                     ContentUnavailableView(
-                        "No activity types yet",
+                        "Todavía no hay tipos de actividad",
                         systemImage: "tag",
-                        description: Text("Tap + → Add activity type before creating activities.")
+                        description: Text("Tocá + → Agregar tipo de actividad antes de crear actividades.")
                     )
                 } else {
                     ForEach(activityTypes) { type in
@@ -63,19 +63,19 @@ struct AppointmentsAdminView: View {
                 }
             }
 
-            Section("Activities") {
+            Section("Actividades") {
                 if activities.isEmpty {
                     ContentUnavailableView(
-                        "No activities yet",
+                        "Todavía no hay actividades",
                         systemImage: "figure.run",
-                        description: Text("Tap + → Add activity before creating appointments.")
+                        description: Text("Tocá + → Agregar actividad antes de crear turnos.")
                     )
                 } else {
                     ForEach(activities) { activity in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(activity.name)
                             if let typeId = activity.activityTypeId {
-                                Text(typeNameById[typeId] ?? "type \(typeId)")
+                                Text(typeNameById[typeId] ?? "tipo \(typeId)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -84,12 +84,12 @@ struct AppointmentsAdminView: View {
                 }
             }
 
-            Section("Schedule · \(admin.gymName)") {
+            Section("Turnos · \(admin.gymName)") {
                 if appointments.isEmpty {
                     ContentUnavailableView(
-                        "No appointments yet",
+                        "Todavía no hay turnos",
                         systemImage: "calendar",
-                        description: Text("Tap + → Add appointment.")
+                        description: Text("Tocá + → Agregar turno.")
                     )
                 } else {
                     ForEach(appointments) { appt in
@@ -101,13 +101,13 @@ struct AppointmentsAdminView: View {
                                     .foregroundStyle(.secondary)
                             }
                             if let end = appt.endDate {
-                                Text("Ends \(timeFormatter.string(from: end))")
+                                Text("Termina \(timeFormatter.string(from: end))")
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                             }
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("Delete", role: .destructive) {
+                            Button("Eliminar", role: .destructive) {
                                 Task { await delete(appt.id) }
                             }
                         }
@@ -115,29 +115,29 @@ struct AppointmentsAdminView: View {
                 }
             }
         }
-        .navigationTitle("Appointments")
+        .navigationTitle("Turnos")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
                         showCreateActivityType = true
                     } label: {
-                        Label("Add activity type", systemImage: "tag")
+                        Label("Agregar tipo de actividad", systemImage: "tag")
                     }
                     Button {
                         showCreateActivity = true
                     } label: {
-                        Label("Add activity", systemImage: "figure.run")
+                        Label("Agregar actividad", systemImage: "figure.run")
                     }
                     .disabled(activityTypes.isEmpty)
                     Button {
                         showCreateAppointment = true
                     } label: {
-                        Label("Add appointment", systemImage: "calendar.badge.plus")
+                        Label("Agregar turno", systemImage: "calendar.badge.plus")
                     }
                     .disabled(activities.isEmpty)
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Agregar", systemImage: "plus")
                 }
                 .disabled(isWorking)
             }
@@ -147,7 +147,7 @@ struct AppointmentsAdminView: View {
         .refreshable { await reload() }
         .sheet(isPresented: $showCreateActivityType) {
             CreateActivityTypeSheet(service: admin.service) { created in
-                status = "Activity type “\(created.name)” created."
+                status = "Tipo de actividad “\(created.name)” creado."
                 showCreateActivityType = false
                 Task { await reload() }
             } onCancel: {
@@ -156,7 +156,7 @@ struct AppointmentsAdminView: View {
         }
         .sheet(isPresented: $showCreateActivity) {
             CreateActivitySheet(service: admin.service, activityTypes: activityTypes) { created in
-                status = "Activity “\(created.name)” created."
+                status = "Actividad “\(created.name)” creada."
                 showCreateActivity = false
                 Task { await reload() }
             } onCancel: {
@@ -171,7 +171,7 @@ struct AppointmentsAdminView: View {
                 activities: activities
             ) { created in
                 let name = activityNameById[created.activityId] ?? created.activityId
-                status = "Appointment for “\(name)” created in \(admin.gymName)."
+                status = "Turno de “\(name)” creado en \(admin.gymName)."
                 showCreateAppointment = false
                 Task { await reload() }
             } onCancel: {
@@ -197,7 +197,7 @@ struct AppointmentsAdminView: View {
     private func delete(_ id: String) async {
         do {
             try await admin.service.deleteAppointment(id: id)
-            status = "Appointment deleted"
+            status = "Turno eliminado"
             error = nil
             await reload()
         } catch {
@@ -223,22 +223,22 @@ private struct CreateActivityTypeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Activity type") {
-                    TextField("Name", text: $name)
-                    TextField("Description (optional)", text: $description)
+                Section("Tipo de actividad") {
+                    TextField("Nombre", text: $name)
+                    TextField("Descripción (opcional)", text: $description)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New activity type")
+            .navigationTitle("Nuevo tipo de actividad")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -297,29 +297,29 @@ private struct CreateActivitySheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Activity type") {
-                    Picker("Type", selection: $activityTypeId) {
+                Section("Tipo de actividad") {
+                    Picker("Tipo", selection: $activityTypeId) {
                         ForEach(activityTypes) { type in
                             Text(type.name).tag(Optional(type.id))
                         }
                     }
                 }
-                Section("Activity") {
-                    TextField("Name", text: $name)
-                    TextField("Description (optional)", text: $description)
+                Section("Actividad") {
+                    TextField("Nombre", text: $name)
+                    TextField("Descripción (opcional)", text: $description)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New activity")
+            .navigationTitle("Nueva actividad")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -385,35 +385,35 @@ private struct CreateAppointmentSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Gym") {
+                Section("Gimnasio") {
                     Text(gymName)
-                    Text("Slot will be created for this active gym.")
+                    Text("El turno se creará en el gimnasio activo.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Section("Activity") {
-                    Picker("Activity", selection: $activityId) {
+                Section("Actividad") {
+                    Picker("Actividad", selection: $activityId) {
                         ForEach(activities) { activity in
                             Text(activity.name).tag(activity.id)
                         }
                     }
                 }
-                Section("Schedule") {
-                    DatePicker("Start", selection: $start)
-                    DatePicker("End", selection: $end)
+                Section("Horario") {
+                    DatePicker("Inicio", selection: $start)
+                    DatePicker("Fin", selection: $end)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New appointment")
+            .navigationTitle("Nuevo turno")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }

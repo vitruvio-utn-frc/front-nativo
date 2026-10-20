@@ -19,7 +19,7 @@ struct AdminRootView: View {
                             AdminHubView(admin: admin, session: model)
                         }
                     }
-                    .tabItem { Label("Home", systemImage: "house") }
+                    .tabItem { Label("Inicio", systemImage: "house") }
 
                     NavigationStack {
                         RoleShellChrome(model: model, title: "Roles") {
@@ -36,21 +36,21 @@ struct AdminRootView: View {
                     .tabItem { Label("Staff", systemImage: "person.2") }
 
                     NavigationStack {
-                        RoleShellChrome(model: model, title: "Clients") {
+                        RoleShellChrome(model: model, title: "Clientes") {
                             ClientDirectoryView(admin: admin)
                         }
                     }
-                    .tabItem { Label("Clients", systemImage: "figure.run") }
+                    .tabItem { Label("Clientes", systemImage: "figure.run") }
 
                     NavigationStack {
-                        RoleShellChrome(model: model, title: "Catalog") {
+                        RoleShellChrome(model: model, title: "Catálogo") {
                             CatalogHubView(admin: admin, session: model)
                         }
                     }
-                    .tabItem { Label("Catalog", systemImage: "list.bullet.rectangle") }
+                    .tabItem { Label("Catálogo", systemImage: "list.bullet.rectangle") }
                 }
             } else {
-                ProgressView("Loading admin…")
+                ProgressView("Cargando administración…")
             }
         }
         .task {
@@ -78,20 +78,20 @@ private struct AdminHubView: View {
     var body: some View {
         List {
             Section(admin.gymName) {
-                Label("\(admin.pendingUsers.count) pending approvals", systemImage: "hourglass")
+                Label("\(admin.pendingUsers.count) aprobaciones pendientes", systemImage: "hourglass")
                 Label("\(admin.staffUsers.count) staff", systemImage: "person.2")
-                Label("\(admin.clientUsers.count) clients", systemImage: "figure.run")
+                Label("\(admin.clientUsers.count) clientes", systemImage: "figure.run")
             }
-            Section("Quick links") {
-                NavigationLink("Gyms") {
+            Section("Accesos rápidos") {
+                NavigationLink("Gimnasios") {
                     GymsAdminView(admin: admin) {
                         await session.load()
                     }
                 }
-                NavigationLink("Assign roles") { AdminRolesView(admin: admin) }
-                NavigationLink("Memberships") { MembershipsAdminView(admin: admin) }
-                NavigationLink("Machines") { MachinesAdminView(admin: admin) }
-                NavigationLink("Appointments") { AppointmentsAdminView(admin: admin) }
+                NavigationLink("Asignar roles") { AdminRolesView(admin: admin) }
+                NavigationLink("Membresías") { MembershipsAdminView(admin: admin) }
+                NavigationLink("Máquinas") { MachinesAdminView(admin: admin) }
+                NavigationLink("Turnos") { AppointmentsAdminView(admin: admin) }
             }
         }
         .task { await admin.reloadDirectory() }
@@ -105,15 +105,15 @@ private struct CatalogHubView: View {
 
     var body: some View {
         List {
-            NavigationLink("Gyms") {
+            NavigationLink("Gimnasios") {
                 GymsAdminView(admin: admin) {
                     await session.load()
                 }
             }
-            NavigationLink("Memberships") { MembershipsAdminView(admin: admin) }
-            NavigationLink("Machines") { MachinesAdminView(admin: admin) }
-            NavigationLink("Appointments") { AppointmentsAdminView(admin: admin) }
+            NavigationLink("Membresías") { MembershipsAdminView(admin: admin) }
+            NavigationLink("Máquinas") { MachinesAdminView(admin: admin) }
+            NavigationLink("Turnos") { AppointmentsAdminView(admin: admin) }
         }
-        .navigationTitle("Catalog")
+        .navigationTitle("Catálogo")
     }
 }

@@ -10,7 +10,7 @@ struct StaffDirectoryView: View {
     @Bindable var admin: AdminWorkspaceModel
 
     var body: some View {
-        directoryList(title: "Staff", rows: admin.staffUsers, empty: "No staff in this gym yet")
+        directoryList(title: "Staff", rows: admin.staffUsers, empty: "Todavía no hay staff en este gimnasio")
     }
 
     @ViewBuilder
@@ -44,7 +44,7 @@ struct ClientDirectoryView: View {
     var body: some View {
         List {
             if admin.clientUsers.isEmpty {
-                ContentUnavailableView("No clients in this gym yet", systemImage: "figure.run")
+                ContentUnavailableView("Todavía no hay clientes en este gimnasio", systemImage: "figure.run")
             } else {
                 ForEach(admin.clientUsers) { row in
                     NavigationLink {
@@ -65,7 +65,7 @@ struct ClientDirectoryView: View {
                 }
             }
         }
-        .navigationTitle("Clients")
+        .navigationTitle("Clientes")
         .refreshable { await admin.reloadDirectory() }
         .task { await admin.reloadDirectory() }
     }
@@ -101,33 +101,33 @@ struct ClientDetailView: View {
 
     var body: some View {
         List {
-            Section("Profile") {
-                LabeledContent("Name", value: client.user.displayName)
+            Section("Perfil") {
+                LabeledContent("Nombre", value: client.user.displayName)
                 if let email = client.user.email {
                     LabeledContent("Email", value: email)
                 }
                 if let idNumber = client.user.idNumber {
-                    LabeledContent("ID number", value: String(idNumber))
+                    LabeledContent("DNI", value: String(idNumber))
                 }
                 if let birthDate = client.user.birthDate {
-                    LabeledContent("Birth date", value: dateFormatter.string(from: birthDate))
+                    LabeledContent("Fecha de nacimiento", value: dateFormatter.string(from: birthDate))
                 }
                 if let genderName {
-                    LabeledContent("Gender", value: genderName)
+                    LabeledContent("Género", value: genderName)
                 } else if let genderId = client.user.genderId {
-                    LabeledContent("Gender", value: String(genderId))
+                    LabeledContent("Género", value: String(genderId))
                 }
                 if let height = client.user.height {
-                    LabeledContent("Height", value: String(format: "%.0f cm", height))
+                    LabeledContent("Altura", value: String(format: "%.0f cm", height))
                 }
                 if let weight = client.user.weight {
-                    LabeledContent("Weight", value: String(format: "%.1f kg", weight))
+                    LabeledContent("Peso", value: String(format: "%.1f kg", weight))
                 }
             }
 
             Section("Roles · \(admin.gymName)") {
                 if client.rolesInGym.isEmpty {
-                    Text("No roles in this gym").foregroundStyle(.secondary)
+                    Text("Sin roles en este gimnasio").foregroundStyle(.secondary)
                 } else {
                     ForEach(client.rolesInGym, id: \.self) { role in
                         Text(role.name)
@@ -142,12 +142,12 @@ struct ClientDetailView: View {
                 Section { Text(error).foregroundStyle(.red).font(.caption) }
             }
 
-            Section("Memberships") {
+            Section("Membresías") {
                 if userMemberships.isEmpty {
                     ContentUnavailableView(
-                        "No memberships",
+                        "Sin membresías",
                         systemImage: "creditcard",
-                        description: Text("Tap + to assign a membership plan.")
+                        description: Text("Tocá + para asignar un plan de membresía.")
                     )
                 } else {
                     ForEach(userMemberships) { item in
@@ -155,7 +155,7 @@ struct ClientDetailView: View {
                             HStack {
                                 Text(membershipNameById[item.membershipId]?.name ?? item.membershipId)
                                 Spacer()
-                                Text(item.isActive ? "Active" : "Inactive")
+                                Text(item.isActive ? "Activa" : "Inactiva")
                                     .font(.caption2.bold())
                                     .foregroundStyle(item.isActive ? .green : .secondary)
                             }
@@ -169,7 +169,7 @@ struct ClientDetailView: View {
                                 .foregroundStyle(.tertiary)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("Remove", role: .destructive) {
+                            Button("Quitar", role: .destructive) {
                                 Task { await removeMembership(item.id) }
                             }
                         }
@@ -184,7 +184,7 @@ struct ClientDetailView: View {
                 Button {
                     showAssign = true
                 } label: {
-                    Label("Assign membership", systemImage: "plus")
+                    Label("Asignar membresía", systemImage: "plus")
                 }
                 .disabled(isWorking || assignableMemberships.isEmpty)
             }
@@ -253,7 +253,7 @@ struct ClientDetailView: View {
                     endDate: end
                 )
             )
-            status = "Membership assigned"
+            status = "Membresía asignada"
             await reload()
         } catch {
             self.error = error.localizedDescription
@@ -266,7 +266,7 @@ struct ClientDetailView: View {
         defer { isWorking = false }
         do {
             try await admin.service.deleteUserMembership(id: id)
-            status = "Membership removed"
+            status = "Membresía quitada"
             await reload()
         } catch {
             self.error = error.localizedDescription
@@ -308,11 +308,11 @@ private struct AssignMembershipSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Client") {
+                Section("Cliente") {
                     Text(memberName)
                 }
                 Section("Plan") {
-                    Picker("Membership", selection: $membershipId) {
+                    Picker("Membresía", selection: $membershipId) {
                         ForEach(memberships) { plan in
                             Text("\(plan.name) · \(String(format: "$%.2f", plan.price))")
                                 .tag(plan.id)
@@ -324,19 +324,19 @@ private struct AssignMembershipSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Section("Dates") {
-                    DatePicker("Start", selection: $start, displayedComponents: .date)
-                    DatePicker("End", selection: $end, displayedComponents: .date)
+                Section("Fechas") {
+                    DatePicker("Inicio", selection: $start, displayedComponents: .date)
+                    DatePicker("Fin", selection: $end, displayedComponents: .date)
                 }
             }
-            .navigationTitle("Assign membership")
+            .navigationTitle("Asignar membresía")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Assign") {
+                    Button("Asignar") {
                         onAssign(membershipId, start, end)
                     }
                     .disabled(!canSave)

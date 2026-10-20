@@ -222,7 +222,7 @@ private enum CompanionGatewayError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notAuthenticated: "Sign in on iPhone"
+        case .notAuthenticated: "Iniciá sesión en el iPhone"
         }
     }
 }

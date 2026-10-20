@@ -31,7 +31,7 @@ struct RoleShellChrome<Content: View>: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             if model.gymContext.availableShells.count > 1 {
-                                Section("View as") {
+                                Section("Ver como") {
                                     ForEach(model.gymContext.availableShells) { shell in
                                         Button {
                                             model.selectShell(shell)
@@ -46,7 +46,7 @@ struct RoleShellChrome<Content: View>: View {
                                 }
                             }
                             if model.gymContext.memberships.count > 1 {
-                                Section("Gym / role") {
+                                Section("Gimnasio / rol") {
                                     ForEach(model.gymContext.memberships) { membership in
                                         Button {
                                             model.select(membership)
@@ -61,12 +61,12 @@ struct RoleShellChrome<Content: View>: View {
                                 }
                             }
                         } label: {
-                            Label("Switch", systemImage: "arrow.left.arrow.right")
+                            Label("Cambiar", systemImage: "arrow.left.arrow.right")
                         }
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Sign out", role: .destructive) {
+                    Button("Cerrar sesión", role: .destructive) {
                         Task { await model.clearAndSignOut() }
                     }
                 }
@@ -75,7 +75,7 @@ struct RoleShellChrome<Content: View>: View {
                 if let active = model.gymContext.activeMembership {
                     let shellLabel = model.gymContext.presentedShell?.displayName
                     Text(
-                        shellLabel.map { "\(active.displayTitle) · viewing \($0)" }
+                        shellLabel.map { "\(active.displayTitle) · viendo \($0)" }
                             ?? active.displayTitle
                     )
                     .font(.caption)

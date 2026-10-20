@@ -25,7 +25,7 @@ Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Ma
 | 7 | `watch-training-companion` | 2, 6 | UI entrenamiento + HealthKit; solo cliente | [x] 2026-10-13 |
 | 7b | `iphone-session-detail-watch-vitals` | 6, 7 | Historial de sesión + vitals Watch en iPhone | [x] 2026-10-14 |
 | 7c | `session-date-calories-hk-workout` | 7b + **backend** | Orden por fecha + kcal + HK workout id; **bloquear cliente hasta API** | [ ] blocked |
-| 8 | `client-appointments` | 4 | Puede ir en paralelo con 6/9 tras gym-context | [ ] |
+| 8 | `client-appointments` | 4 | Puede ir en paralelo con 6/9 tras gym-context | [x] 2026-10-16 |
 | 9 | `client-membership-profile` | 4 | Membresías + perfil; sin tarjetas/store | [ ] |
 | 10 | `staff-operations` | 4 | Clientes, ejercicios, planes (crear planes para E2E training) | [ ] |
 | 11 | `admin-operations` (resto) | 5 | Directory, memberships, machines, appointments schedule | [x] 2026-10-13 |

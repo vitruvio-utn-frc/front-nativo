@@ -24,10 +24,10 @@ struct MembershipPickerView: View {
                     }
                 }
             }
-            .navigationTitle("Choose gym & role")
+            .navigationTitle("Elegí gimnasio y rol")
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    Button("Sign out", role: .destructive) {
+                    Button("Cerrar sesión", role: .destructive) {
                         Task { await model.clearAndSignOut() }
                     }
                 }

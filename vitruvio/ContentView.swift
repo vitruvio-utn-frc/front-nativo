@@ -16,7 +16,7 @@ struct ContentView: View {
             case .signedOut:
                 signInView
             case .resolving:
-                ProgressView("Loading profile…")
+                ProgressView("Cargando perfil…")
             case .onboarding(let prefill):
                 OnboardingView(gate: gate, prefill: prefill)
             case .pendingApproval(let userId):
@@ -34,7 +34,7 @@ struct ContentView: View {
 
     private var loadFailedView: some View {
         VStack(spacing: 16) {
-            Text("Couldn't load profile")
+            Text("No se pudo cargar el perfil")
                 .font(.title3.bold())
             if let error = gate.lastError {
                 Text(error)
@@ -42,11 +42,11 @@ struct ContentView: View {
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
             }
-            Button("Retry") {
+            Button("Reintentar") {
                 Task { await gate.handleAuthChange() }
             }
             .buttonStyle(.borderedProminent)
-            Button("Sign out", role: .destructive) {
+            Button("Cerrar sesión", role: .destructive) {
                 Task { await session.logout() }
             }
         }
@@ -58,11 +58,11 @@ struct ContentView: View {
             Text("Vitruvio")
                 .font(.largeTitle.bold())
 
-            Text("Sign in with Keycloak to continue")
+            Text("Iniciá sesión con Keycloak para continuar")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
-            Button("Sign in") {
+            Button("Iniciar sesión") {
                 Task {
                     await session.login()
                     await gate.handleAuthChange()

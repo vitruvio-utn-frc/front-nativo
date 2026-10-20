@@ -57,19 +57,19 @@ struct GymsAdminView: View {
                 gymListSection
             } else if canManageCompanies {
                 Section {
-                    Text("Select a company or tap + → Add company.")
+                    Text("Elegí una empresa o tocá + → Agregar empresa.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Section {
-                    Text("This admin account has no company on the active gym.")
+                    Text("Esta cuenta de admin no tiene empresa en el gimnasio activo.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .navigationTitle("Gyms")
+        .navigationTitle("Gimnasios")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if canManageCompanies {
@@ -77,23 +77,23 @@ struct GymsAdminView: View {
                         Button {
                             showCreateCompany = true
                         } label: {
-                            Label("Add company", systemImage: "building.2")
+                            Label("Agregar empresa", systemImage: "building.2")
                         }
                         Button {
                             showCreateGym = true
                         } label: {
-                            Label("Add gym", systemImage: "dumbbell")
+                            Label("Agregar gimnasio", systemImage: "dumbbell")
                         }
                         .disabled(!hasCompanyScope)
                     } label: {
-                        Label("Add", systemImage: "plus")
+                        Label("Agregar", systemImage: "plus")
                     }
                     .disabled(isWorking)
                 } else {
                     Button {
                         showCreateGym = true
                     } label: {
-                        Label("Add gym", systemImage: "plus")
+                        Label("Agregar gimnasio", systemImage: "plus")
                     }
                     .disabled(!hasCompanyScope || isWorking)
                 }
@@ -104,7 +104,7 @@ struct GymsAdminView: View {
         .refreshable { await reload() }
         .sheet(isPresented: $showCreateCompany) {
             CreateCompanySheet(service: admin.service) { created in
-                status = "Company “\(created.name)” created. Tap + to add a gym."
+                status = "Empresa “\(created.name)” creada. Tocá + para agregar un gimnasio."
                 showCreateCompany = false
                 companyId = created.id
                 Task { await reload() }
@@ -120,7 +120,7 @@ struct GymsAdminView: View {
                 adminUserId: admin.currentUserId,
                 service: admin.service
             ) { created in
-                status = "Created “\(created.name)”. Switch gym/role if needed to open it."
+                status = "“\(created.name)” creado. Cambiá de gimnasio o rol si necesitás abrirlo."
                 showCreateGym = false
                 companyId = created.companyId ?? companyId
                 Task {
@@ -139,7 +139,7 @@ struct GymsAdminView: View {
                 lockedCompanyId: canManageCompanies ? nil : companyId,
                 service: admin.service
             ) { updated in
-                status = "Updated “\(updated.name)”"
+                status = "“\(updated.name)” actualizado"
                 editingGym = nil
                 Task {
                     await reload()
@@ -150,38 +150,38 @@ struct GymsAdminView: View {
             }
         }
         .confirmationDialog(
-            "Delete gym?",
+            "¿Eliminar gimnasio?",
             isPresented: Binding(
                 get: { gymPendingDelete != nil },
                 set: { if !$0 { gymPendingDelete = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Delete “\(gymPendingDelete?.name ?? "gym")”", role: .destructive) {
+            Button("Eliminar “\(gymPendingDelete?.name ?? "gimnasio")”", role: .destructive) {
                 if let gym = gymPendingDelete {
                     Task { await deleteGym(gym) }
                 }
             }
-            Button("Cancel", role: .cancel) {
+            Button("Cancelar", role: .cancel) {
                 gymPendingDelete = nil
             }
         } message: {
-            Text("This removes the gym from the API. Related roles/links may fail if the backend still references it.")
+            Text("Esto elimina el gimnasio de la API. Los roles o vínculos relacionados pueden fallar si el backend todavía lo referencia.")
         }
     }
 
     @ViewBuilder
     private var superadminCompanySection: some View {
-        Section("Company") {
+        Section("Empresa") {
             if companies.isEmpty {
                 ContentUnavailableView(
-                    "No companies yet",
+                    "Todavía no hay empresas",
                     systemImage: "building.2",
-                    description: Text("Tap + → Add company.")
+                    description: Text("Tocá + → Agregar empresa.")
                 )
             } else {
-                Picker("Company", selection: $companyId) {
-                    Text("Select").tag("")
+                Picker("Empresa", selection: $companyId) {
+                    Text("Seleccionar").tag("")
                     ForEach(companies) { company in
                         Text(company.name).tag(company.id)
                     }
@@ -192,9 +192,9 @@ struct GymsAdminView: View {
 
     @ViewBuilder
     private var adminCompanySection: some View {
-        Section("Company") {
+        Section("Empresa") {
             Text(selectedCompanyName)
-            Text("Gym admins can only manage gyms in this company.")
+            Text("Los admins de gimnasio solo pueden administrar gimnasios de esta empresa.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -202,12 +202,12 @@ struct GymsAdminView: View {
 
     @ViewBuilder
     private var gymListSection: some View {
-        Section("Gyms · \(selectedCompanyName)") {
+        Section("Gimnasios · \(selectedCompanyName)") {
             if gymsForScope.isEmpty {
                 ContentUnavailableView(
-                    "No gyms yet",
+                    "Todavía no hay gimnasios",
                     systemImage: "building.2",
-                    description: Text("Tap + to create a gym for this company.")
+                    description: Text("Tocá + para crear un gimnasio en esta empresa.")
                 )
             }
             ForEach(gymsForScope) { gym in
@@ -234,7 +234,7 @@ struct GymsAdminView: View {
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button("Delete", role: .destructive) {
+                    Button("Eliminar", role: .destructive) {
                         gymPendingDelete = gym
                     }
                 }
@@ -264,7 +264,7 @@ struct GymsAdminView: View {
                     gyms = []
                     companies = []
                     companyId = ""
-                    error = "Active gym has no company; cannot manage gyms."
+                    error = "El gimnasio activo no tiene empresa; no se pueden administrar gimnasios."
                     return
                 }
                 companyId = scopedCompanyId
@@ -292,11 +292,11 @@ struct GymsAdminView: View {
         do {
             if !canManageCompanies, let scoped = admin.companyId,
                (gym.companyId ?? "").caseInsensitiveCompare(scoped) != .orderedSame {
-                error = "Gym admins can only delete gyms in their company."
+                error = "Los admins de gimnasio solo pueden eliminar gimnasios de su empresa."
                 return
             }
             try await admin.service.deleteGym(id: gym.id)
-            status = "Deleted “\(gym.name)”"
+            status = "“\(gym.name)” eliminado"
             await reload()
             await onGymCreated?()
         } catch {
@@ -321,21 +321,21 @@ private struct CreateCompanySheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Company") {
-                    TextField("Name", text: $name)
+                Section("Empresa") {
+                    TextField("Nombre", text: $name)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New company")
+            .navigationTitle("Nueva empresa")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -409,27 +409,27 @@ private struct CreateGymSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Company") {
+                Section("Empresa") {
                     if canChangeCompany {
-                        Picker("Company", selection: $companyId) {
+                        Picker("Empresa", selection: $companyId) {
                             ForEach(companies) { company in
                                 Text(company.name).tag(company.id)
                             }
                         }
                     } else {
                         Text(companies.first { $0.id == companyId }?.name ?? companyId)
-                        Text("Company is fixed for gym admins.")
+                        Text("La empresa es fija para los admins de gimnasio.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Section("Gym") {
-                    TextField("Name", text: $name)
-                    TextField("Address", text: $address)
-                    TextField("Zip code", text: $zipCode)
-                    TextField("City", text: $city)
-                    TextField("State", text: $state)
-                    TextField("Phone", text: $phone)
+                Section("Gimnasio") {
+                    TextField("Nombre", text: $name)
+                    TextField("Dirección", text: $address)
+                    TextField("Código postal", text: $zipCode)
+                    TextField("Ciudad", text: $city)
+                    TextField("Provincia", text: $state)
+                    TextField("Teléfono", text: $phone)
                         .keyboardType(.phonePad)
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
@@ -439,14 +439,14 @@ private struct CreateGymSheet: View {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New gym")
+            .navigationTitle("Nuevo gimnasio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -539,27 +539,27 @@ private struct EditGymSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Company") {
+                Section("Empresa") {
                     if canChangeCompany {
-                        Picker("Company", selection: $companyId) {
+                        Picker("Empresa", selection: $companyId) {
                             ForEach(companies) { company in
                                 Text(company.name).tag(company.id)
                             }
                         }
                     } else {
                         Text(companies.first { $0.id == companyId }?.name ?? companyId)
-                        Text("Company is fixed for gym admins.")
+                        Text("La empresa es fija para los admins de gimnasio.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Section("Gym") {
-                    TextField("Name", text: $name)
-                    TextField("Address", text: $address)
-                    TextField("Zip code", text: $zipCode)
-                    TextField("City", text: $city)
-                    TextField("State", text: $state)
-                    TextField("Phone", text: $phone)
+                Section("Gimnasio") {
+                    TextField("Nombre", text: $name)
+                    TextField("Dirección", text: $address)
+                    TextField("Código postal", text: $zipCode)
+                    TextField("Ciudad", text: $city)
+                    TextField("Provincia", text: $state)
+                    TextField("Teléfono", text: $phone)
                         .keyboardType(.phonePad)
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
@@ -569,14 +569,14 @@ private struct EditGymSheet: View {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("Edit gym")
+            .navigationTitle("Editar gimnasio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
+                    Button("Guardar") { Task { await save() } }
                         .disabled(!canSave || isWorking)
                 }
             }

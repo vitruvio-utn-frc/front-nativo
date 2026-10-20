@@ -15,7 +15,7 @@ struct WatchTrainingRootView: View {
             List {
                 Section {
                     Label(
-                        WatchConnectivityBridge.shared.isReachable ? "iPhone linked" : "Open iPhone app",
+                        WatchConnectivityBridge.shared.isReachable ? "iPhone vinculado" : "Abrí la app en el iPhone",
                         systemImage: WatchConnectivityBridge.shared.isReachable
                             ? "iphone.gen3.radiowaves.left.and.right"
                             : "iphone"
@@ -27,14 +27,14 @@ struct WatchTrainingRootView: View {
                 }
 
                 if let snapshot = model.activeSession {
-                    Section("Active") {
+                    Section("Activa") {
                         Button {
                             path.append(WatchTrainingRoute.active)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(snapshot.planName ?? "Workout")
+                                Text(snapshot.planName ?? "Entrenamiento")
                                     .font(.headline)
-                                Text("\(snapshot.executionCount) ex · \(snapshot.setCount) sets")
+                                Text("\(snapshot.executionCount) ej. · \(snapshot.setCount) series")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -49,11 +49,11 @@ struct WatchTrainingRootView: View {
                     Section { Text(error).font(.caption2).foregroundStyle(.red) }
                 }
 
-                Section("Plans") {
+                Section("Planes") {
                     if model.isLoading && model.plans.isEmpty {
                         ProgressView()
                     } else if model.plans.isEmpty {
-                        Text("No plans on iPhone")
+                        Text("Sin planes en el iPhone")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
@@ -67,7 +67,7 @@ struct WatchTrainingRootView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(plan.name)
-                                    Text("Start on iPhone")
+                                    Text("Iniciá desde el iPhone")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
@@ -77,7 +77,7 @@ struct WatchTrainingRootView: View {
                     }
                 }
             }
-            .navigationTitle("Training")
+            .navigationTitle("Entrenamiento")
             .navigationDestination(for: WatchTrainingRoute.self) { route in
                 switch route {
                 case .active:
@@ -107,9 +107,9 @@ struct WatchActiveSessionView: View {
         List {
             Section {
                 if let snapshot = model.activeSession {
-                    Text(snapshot.planName ?? "Workout")
+                    Text(snapshot.planName ?? "Entrenamiento")
                         .font(.headline)
-                    Text("\(snapshot.executionCount) ex · \(snapshot.setCount) sets")
+                    Text("\(snapshot.executionCount) ej. · \(snapshot.setCount) series")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -123,9 +123,9 @@ struct WatchActiveSessionView: View {
                 Section { Text(error).font(.caption2).foregroundStyle(.red) }
             }
 
-            Section("Exercises") {
+            Section("Ejercicios") {
                 if model.exercises.isEmpty {
-                    Text("Add exercises on iPhone")
+                    Text("Agregá ejercicios desde el iPhone")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -135,13 +135,13 @@ struct WatchActiveSessionView: View {
             }
 
             Section {
-                Button("End session", role: .destructive) {
+                Button("Finalizar sesión", role: .destructive) {
                     Task { await model.endSession() }
                 }
                 .disabled(model.isWorking)
             }
         }
-        .navigationTitle("Session")
+        .navigationTitle("Sesión")
         .overlay { if model.isWorking || model.isLoading { ProgressView() } }
         .task { await model.continueActiveSession() }
     }
@@ -176,7 +176,7 @@ struct WatchActiveSessionView: View {
                 .fontWeight(.semibold)
             Text(
                 execution.setReps.isEmpty
-                    ? "No sets"
+                    ? "Sin series"
                     : execution.setReps.map(String.init).joined(separator: "·")
             )
             .font(.caption2)
@@ -199,12 +199,12 @@ struct WatchActiveSessionView: View {
                 .buttonStyle(.plain)
             }
 
-            Button("Log set") {
+            Button("Registrar serie") {
                 Task { await model.logSet(executionId: execution.id, reps: reps.wrappedValue) }
             }
             .disabled(model.isWorking)
 
-            Button("Done") {
+            Button("Listo") {
                 Task { await model.completeExercise(executionId: execution.id) }
             }
             .disabled(model.isWorking)

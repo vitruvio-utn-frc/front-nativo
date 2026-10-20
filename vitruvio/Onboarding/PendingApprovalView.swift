@@ -14,9 +14,9 @@ struct PendingApprovalView: View {
             Image(systemName: "hourglass")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text("Pending approval")
+            Text("Pendiente de aprobación")
                 .font(.title2.bold())
-            Text("Your profile is ready. An admin needs to assign a gym role before you can continue.")
+            Text("Tu perfil está listo. Un admin debe asignarte un rol en el gimnasio para que puedas continuar.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)
@@ -28,13 +28,13 @@ struct PendingApprovalView: View {
                     .multilineTextAlignment(.center)
             }
 
-            Button("Refresh status") {
+            Button("Actualizar estado") {
                 Task { await gate.refreshPending(userId: userId) }
             }
             .buttonStyle(.borderedProminent)
             .disabled(gate.isBusy)
 
-            Button("Sign out", role: .destructive) {
+            Button("Cerrar sesión", role: .destructive) {
                 Task { await gate.session.logout() }
             }
 

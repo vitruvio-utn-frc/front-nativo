@@ -396,6 +396,23 @@ public struct CreateAppointmentRequest: Encodable, Sendable {
     }
 }
 
+/// PUT body for `api/appointments/{id}` (book = set `memberId`, cancel = clear it).
+public struct UpdateAppointmentRequest: Encodable, Sendable {
+    public var gymId: String
+    public var memberId: String?
+    public var activityId: String
+    public var startDate: Date
+    public var endDate: Date
+
+    public init(gymId: String, memberId: String? = nil, activityId: String, startDate: Date, endDate: Date) {
+        self.gymId = gymId
+        self.memberId = memberId
+        self.activityId = activityId
+        self.startDate = startDate
+        self.endDate = endDate
+    }
+}
+
 /// User row for admin lists, with roles in the active gym.
 public struct AdminDirectoryUser: Identifiable, Hashable, Sendable {
     public let user: UserDTO

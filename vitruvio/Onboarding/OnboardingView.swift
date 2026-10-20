@@ -18,25 +18,25 @@ struct OnboardingView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Identity") {
-                    TextField("ID number", text: $form.idNumber)
+                Section("Identidad") {
+                    TextField("DNI", text: $form.idNumber)
                         .keyboardType(.numberPad)
-                    TextField("First name", text: $form.firstName)
-                    TextField("Last name", text: $form.lastName)
+                    TextField("Nombre", text: $form.firstName)
+                    TextField("Apellido", text: $form.lastName)
                     TextField("Email", text: $form.email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
 
-                Section("Profile") {
-                    TextField("Height (cm)", text: $form.height)
+                Section("Perfil") {
+                    TextField("Altura (cm)", text: $form.height)
                         .keyboardType(.decimalPad)
-                    TextField("Weight (kg)", text: $form.weight)
+                    TextField("Peso (kg)", text: $form.weight)
                         .keyboardType(.decimalPad)
-                    DatePicker("Birth date", selection: $form.birthDate, displayedComponents: .date)
-                    Picker("Gender", selection: $form.genderId) {
-                        Text("Select").tag("")
+                    DatePicker("Fecha de nacimiento", selection: $form.birthDate, displayedComponents: .date)
+                    Picker("Género", selection: $form.genderId) {
+                        Text("Seleccionar").tag("")
                         ForEach(gate.genders) { gender in
                             Text(gender.name).tag(gender.id)
                         }
@@ -60,17 +60,17 @@ struct OnboardingView: View {
                 }
 
                 Section {
-                    Button("Create profile") {
+                    Button("Crear perfil") {
                         Task { await gate.submit(form: form) }
                     }
                     .disabled(gate.isBusy || form.validationMessage != nil)
 
-                    Button("Sign out", role: .destructive) {
+                    Button("Cerrar sesión", role: .destructive) {
                         Task { await gate.session.logout() }
                     }
                 }
             }
-            .navigationTitle("Complete profile")
+            .navigationTitle("Completar perfil")
             .overlay {
                 if gate.isBusy {
                     ProgressView()

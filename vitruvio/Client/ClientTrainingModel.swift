@@ -154,7 +154,7 @@ final class ClientTrainingModel {
                 planId: plan.id,
                 planName: plan.name
             )
-            status = "Session started"
+            status = "Sesión iniciada"
             executions = []
             setsByExecution = [:]
             Task {
@@ -212,14 +212,14 @@ final class ClientTrainingModel {
             } else {
                 try offlineQueue.enqueueEncoded(.createExerciseExecution, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued exercise (offline)"
+                status = "Ejercicio en cola (sin conexión)"
             }
             await loadActiveSession()
         } catch {
             if shouldQueue(error) {
                 try? offlineQueue.enqueueEncoded(.createExerciseExecution, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued exercise (offline)"
+                status = "Ejercicio en cola (sin conexión)"
             } else {
                 lastError = error.localizedDescription
             }
@@ -234,18 +234,18 @@ final class ClientTrainingModel {
         do {
             if network.isOnline {
                 _ = try await service.createSet(request)
-                status = "Set logged"
+                status = "Serie registrada"
             } else {
                 try offlineQueue.enqueueEncoded(.createExerciseSet, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued set (offline)"
+                status = "Serie en cola (sin conexión)"
             }
             await loadActiveSession()
         } catch {
             if shouldQueue(error) {
                 try? offlineQueue.enqueueEncoded(.createExerciseSet, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued set (offline)"
+                status = "Serie en cola (sin conexión)"
             } else {
                 lastError = error.localizedDescription
             }
@@ -265,17 +265,17 @@ final class ClientTrainingModel {
         do {
             if network.isOnline {
                 _ = try await service.createCompletion(request)
-                status = "Exercise completed"
+                status = "Ejercicio completado"
             } else {
                 try offlineQueue.enqueueEncoded(.createExerciseCompletion, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued completion (offline)"
+                status = "Finalización en cola (sin conexión)"
             }
         } catch {
             if shouldQueue(error) {
                 try? offlineQueue.enqueueEncoded(.createExerciseCompletion, value: request)
                 pendingOfflineCount = offlineQueue.pendingCount
-                status = "Queued completion (offline)"
+                status = "Finalización en cola (sin conexión)"
             } else {
                 lastError = error.localizedDescription
             }
@@ -286,7 +286,7 @@ final class ClientTrainingModel {
         activeSession.clear()
         executions = []
         setsByExecution = [:]
-        status = "Session cleared"
+        status = "Sesión descartada"
         pushCompanionTraining()
     }
 
@@ -298,7 +298,7 @@ final class ClientTrainingModel {
         let count = await offlineQueue.flush(using: service.api)
         pendingOfflineCount = offlineQueue.pendingCount
         if count > 0 {
-            status = "Synced \(count) offline action(s)"
+            status = "Se sincronizaron \(count) acción(es) sin conexión"
             if activeSession.activeSessionId != nil {
                 await loadActiveSession()
             }

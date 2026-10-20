@@ -69,17 +69,17 @@ final class WatchTrainingModel {
             "startSession",
             params: ["planId": plan.id]
         ) else {
-            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone unavailable"
+            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
             return false
         }
         apply(snapshot)
         if let session = activeSession {
             healthKit.companionTrainingSessionId = session.sessionId
             await healthKit.startWorkoutIfAuthorized()
-            status = "Session started"
+            status = "Sesión iniciada"
             return true
         }
-        lastError = snapshot.statusMessage ?? "Could not start"
+        lastError = snapshot.statusMessage ?? "No se pudo iniciar"
         return false
     }
 
@@ -92,9 +92,9 @@ final class WatchTrainingModel {
             params: ["executionId": executionId, "reps": reps]
         ) {
             apply(snapshot)
-            status = "Set logged"
+            status = "Serie registrada"
         } else {
-            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone unavailable"
+            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
         }
     }
 
@@ -107,9 +107,9 @@ final class WatchTrainingModel {
             params: ["executionId": executionId]
         ) {
             apply(snapshot)
-            status = "Exercise done"
+            status = "Ejercicio completado"
         } else {
-            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone unavailable"
+            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
         }
     }
 
@@ -119,9 +119,9 @@ final class WatchTrainingModel {
         _ = await healthKit.endWorkout()
         if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction("endSession") {
             apply(snapshot)
-            status = "Session ended"
+            status = "Sesión finalizada"
         } else {
-            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone unavailable"
+            lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
         }
     }
 
@@ -132,7 +132,7 @@ final class WatchTrainingModel {
         activeSession = snapshot.trainingSnapshot
         if let statusMessage = snapshot.statusMessage, !statusMessage.hasPrefix("ok:") {
             // Surface non-ok status from phone.
-            if statusMessage.contains("Sign in") || statusMessage.contains("error") {
+            if statusMessage.contains("sesión") || statusMessage.contains("error") {
                 lastError = statusMessage
             } else {
                 status = statusMessage

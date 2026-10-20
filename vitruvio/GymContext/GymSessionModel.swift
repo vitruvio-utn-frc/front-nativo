@@ -75,7 +75,7 @@ final class GymSessionModel {
     private func reconcilePhase() {
         if gymContext.memberships.isEmpty {
             // Onboarding should have kept us in pending; treat as failed handoff.
-            lastError = "No gym roles available"
+            lastError = "No hay roles de gimnasio disponibles"
             phase = .failed
             return
         }

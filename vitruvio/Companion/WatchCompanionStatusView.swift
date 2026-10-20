@@ -14,44 +14,44 @@ struct WatchCompanionStatusView: View {
 
     var body: some View {
         List {
-            Section("Link") {
-                labeled("Supported", bridge.isSupported ? "yes" : "no")
-                labeled("Activation", bridge.activationStateLabel)
-                labeled("Paired", bridge.isPaired ? "yes" : "no")
-                labeled("Watch app installed", bridge.isWatchAppInstalled ? "yes" : "no")
-                labeled("Watch reachable", bridge.isReachable ? "yes" : "no")
+            Section("Vínculo") {
+                labeled("Compatible", bridge.isSupported ? "sí" : "no")
+                labeled("Activación", bridge.activationStateLabel)
+                labeled("Emparejado", bridge.isPaired ? "sí" : "no")
+                labeled("App instalada en el Watch", bridge.isWatchAppInstalled ? "sí" : "no")
+                labeled("Watch accesible", bridge.isReachable ? "sí" : "no")
                     .foregroundStyle(bridge.isReachable ? .green : .secondary)
             }
 
-            Section("Last push to Watch") {
-                labeled("When", bridge.lastPushedAt?.formatted(date: .omitted, time: .standard) ?? "never")
-                labeled("Payload", bridge.lastPushSummary ?? "—")
-                labeled("Pending retry", bridge.hasPendingPush ? "yes" : "no")
-                labeled("Queued userInfo", "\(bridge.outstandingUserInfoCount)")
+            Section("Último envío al Watch") {
+                labeled("Cuándo", bridge.lastPushedAt?.formatted(date: .omitted, time: .standard) ?? "nunca")
+                labeled("Contenido", bridge.lastPushSummary ?? "—")
+                labeled("Reintento pendiente", bridge.hasPendingPush ? "sí" : "no")
+                labeled("userInfo en cola", "\(bridge.outstandingUserInfoCount)")
             }
 
-            Section("Outbound snapshot (to Watch)") {
+            Section("Snapshot enviado (al Watch)") {
                 if let snap = bridge.lastPushedSnapshot {
-                    labeled("hasAuth", snap.hasAuth ? "yes" : "no")
+                    labeled("hasAuth", snap.hasAuth ? "sí" : "no")
                     labeled("userId", snap.userId ?? "—")
                     labeled("roleId", snap.roleId ?? "—")
                     labeled("shell", snap.shell ?? "—")
-                    labeled("plans", "\(snap.plans.count)")
-                    labeled("training", snap.trainingPlanName ?? snap.trainingSessionId ?? "none")
+                    labeled("planes", "\(snap.plans.count)")
+                    labeled("entrenamiento", snap.trainingPlanName ?? snap.trainingSessionId ?? "ninguno")
                 } else {
-                    Text("No snapshot pushed yet")
+                    Text("Todavía no se envió ningún snapshot")
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section("Inbound context (from Watch/device)") {
+            Section("Contexto recibido (del Watch/dispositivo)") {
                 Text(bridge.receivedContextSummary ?? "—")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if let error = bridge.lastError {
-                Section("Last error") {
+                Section("Último error") {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -70,7 +70,7 @@ struct WatchCompanionStatusView: View {
                 Button {
                     bridge.refreshDiagnostics()
                 } label: {
-                    Label("Refresh status", systemImage: "arrow.clockwise")
+                    Label("Actualizar estado", systemImage: "arrow.clockwise")
                 }
 
                 Button {
@@ -80,14 +80,14 @@ struct WatchCompanionStatusView: View {
                         await CompanionPhoneGateway.shared.publish(statusMessage: "manual-push")
                         bridge.refreshDiagnostics()
                         statusNote =
-                            "Pushed application context at \(Date().formatted(date: .omitted, time: .standard)). On Watch tap Refresh."
+                            "Contexto enviado a las \(Date().formatted(date: .omitted, time: .standard)). En el Watch tocá Actualizar."
                     }
                 } label: {
-                    Label("Push sync to Watch now", systemImage: "applewatch.radiowaves.left.and.right")
+                    Label("Enviar sincronización al Watch ahora", systemImage: "applewatch.radiowaves.left.and.right")
                 }
                 .disabled(isPublishing || !bridge.isActivated)
             } footer: {
-                Text("Sync uses application context (no message reply). If Watch still waits, push here then Refresh on Watch.")
+                Text("La sincronización usa application context (sin respuesta). Si el Watch sigue esperando, enviá desde acá y tocá Actualizar en el Watch.")
                     .font(.caption2)
             }
         }

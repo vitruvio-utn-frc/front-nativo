@@ -305,7 +305,7 @@ public final class WatchConnectivityBridge: NSObject {
 #if os(iOS)
         // Stale activation error from sim after unpair/reinstall while Watch is fine.
         if isReachable || isWatchAppInstalled,
-           lastError == "Watch app is not installed."
+           lastError == "La app del Watch no está instalada."
         {
             lastError = nil
         }
@@ -381,11 +381,11 @@ public final class WatchConnectivityBridge: NSObject {
     public func requestFullSyncFromPhone() {
 #if canImport(WatchConnectivity) && os(watchOS)
         guard let session else {
-            lastError = "Watch Connectivity unavailable"
+            lastError = "Watch Connectivity no disponible"
             return
         }
         guard session.activationState == .activated else {
-            lastError = "Watch Connectivity not activated"
+            lastError = "Watch Connectivity no activado"
             return
         }
 
@@ -430,7 +430,7 @@ public final class WatchConnectivityBridge: NSObject {
                 }
             }
             if self.lastReceivedSnapshot == nil {
-                self.lastError = "No sync from iPhone yet — open Profile → Apple Watch → Push sync"
+                self.lastError = "Todavía no hay sincronización desde el iPhone: abrí Perfil → Apple Watch → Enviar sincronización"
             }
         }
 #endif
@@ -485,11 +485,11 @@ public final class WatchConnectivityBridge: NSObject {
     public func sendWatchAction(_ action: String, params: [String: Any] = [:]) async -> CompanionSyncSnapshot? {
 #if canImport(WatchConnectivity) && os(watchOS)
         guard let session, session.activationState == .activated else {
-            lastError = "Watch Connectivity not ready"
+            lastError = "Watch Connectivity no está listo"
             return nil
         }
         guard session.isReachable else {
-            lastError = "iPhone not reachable"
+            lastError = "iPhone inaccesible"
             return nil
         }
         var message = params
@@ -738,7 +738,7 @@ public final class WatchConnectivityBridge: NSObject {
             return
         }
         if dict["ok"] as? Bool == false {
-            lastError = (dict["error"] as? String) ?? "sync failed"
+            lastError = (dict["error"] as? String) ?? "falló la sincronización"
             return
         }
 

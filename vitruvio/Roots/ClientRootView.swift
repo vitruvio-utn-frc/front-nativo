@@ -11,21 +11,21 @@ struct ClientRootView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                RoleShellChrome(model: model, title: "Training") {
+                RoleShellChrome(model: model, title: "Entrenamiento") {
                     ClientTrainingHomeView(session: model)
                 }
             }
-            .tabItem { Label("Training", systemImage: "figure.run") }
+            .tabItem { Label("Entrenamiento", systemImage: "figure.run") }
 
             NavigationStack {
-                RoleShellChrome(model: model, title: "Client") {
-                    placeholder("Appointments land in client-appointments")
+                RoleShellChrome(model: model, title: "Turnos") {
+                    ClientAppointmentsHomeView(session: model)
                 }
             }
-            .tabItem { Label("Schedule", systemImage: "calendar") }
+            .tabItem { Label("Turnos", systemImage: "calendar") }
 
             NavigationStack {
-                RoleShellChrome(model: model, title: "Client") {
+                RoleShellChrome(model: model, title: "Cliente") {
                     List {
                         Section {
                             NavigationLink {
@@ -36,18 +36,14 @@ struct ClientRootView: View {
                         }
 
                         Section {
-                            Text("Membership & profile land in client-membership-profile")
+                            Text("Membresía y perfil: próximamente")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
                 }
             }
-            .tabItem { Label("Profile", systemImage: "person") }
+            .tabItem { Label("Perfil", systemImage: "person") }
         }
-    }
-
-    private func placeholder(_ text: String) -> some View {
-        ContentUnavailableView("Client", systemImage: "figure.run", description: Text(text))
     }
 }

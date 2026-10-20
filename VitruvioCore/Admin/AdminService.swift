@@ -200,6 +200,10 @@ public struct AdminService: Sendable {
         try await api.post("api/appointments", body: request)
     }
 
+    public func updateAppointment(id: String, _ request: UpdateAppointmentRequest) async throws -> AppointmentDTO {
+        try await api.put("api/appointments/\(id)", body: request)
+    }
+
     public func deleteAppointment(id: String) async throws {
         try await api.delete("api/appointments/\(id)")
     }

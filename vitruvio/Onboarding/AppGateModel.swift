@@ -67,7 +67,7 @@ final class AppGateModel {
 
     func submit(form: OnboardingFormState) async {
         guard let subject = session.subject else {
-            lastError = "Missing subject"
+            lastError = "Falta el identificador (sub)"
             return
         }
         if let message = form.validationMessage {
@@ -76,7 +76,7 @@ final class AppGateModel {
         }
         guard let idNumber = Int(form.idNumber.trimmingCharacters(in: .whitespacesAndNewlines)),
               let genderId = Int(form.genderId) else {
-            lastError = "ID number and gender must be valid integers"
+            lastError = "El DNI y el género deben ser números enteros válidos"
             return
         }
 
@@ -126,7 +126,7 @@ final class AppGateModel {
             phase = .ready(userId: userId)
         @unknown default:
             phase = .loadFailed
-            lastError = "Unsupported onboarding gate"
+            lastError = "Etapa de alta no compatible"
         }
     }
 
@@ -134,25 +134,25 @@ final class AppGateModel {
         if let onboarding = error as? OnboardingError {
             switch onboarding {
             case .missingSubject:
-                return "Missing Keycloak subject"
+                return "Falta el identificador de Keycloak"
             case .validation(let message):
                 return message
             case .apiMessage(let status, let message):
                 return "API \(status): \(message)"
             case .unexpected:
-                return "Unexpected onboarding error"
+                return "Error inesperado en el alta"
             @unknown default:
-                return "Onboarding error"
+                return "Error en el alta"
             }
         }
         if let api = error as? APIClientError {
             switch api {
-            case .unauthorized: return "Unauthorized"
+            case .unauthorized: return "No autorizado"
             case .httpStatus(let code): return "HTTP \(code)"
-            case .invalidResponse: return "Invalid response"
+            case .invalidResponse: return "Respuesta inválida"
             case .message(let status, let body): return "API \(status): \(body)"
             @unknown default:
-                return "API error"
+                return "Error de la API"
             }
         }
         return error.localizedDescription
@@ -189,16 +189,16 @@ struct OnboardingFormState: Equatable {
     var validationMessage: String? {
         let trimmedId = idNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let parsedId = Int(trimmedId), parsedId > 0 else {
-            return "ID number must be a positive integer"
+            return "El DNI debe ser un entero positivo"
         }
-        if firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "First name is required" }
-        if lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Last name is required" }
-        if email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Email is required" }
+        if firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "El nombre es obligatorio" }
+        if lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "El apellido es obligatorio" }
+        if email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "El email es obligatorio" }
         guard let parsedGender = Int(genderId), parsedGender > 0 else {
-            return "Gender is required"
+            return "El género es obligatorio"
         }
-        if heightValue <= 0 { return "Height must be positive" }
-        if weightValue <= 0 { return "Weight must be positive" }
+        if heightValue <= 0 { return "La altura debe ser positiva" }
+        if weightValue <= 0 { return "El peso debe ser positivo" }
         return nil
     }
 }

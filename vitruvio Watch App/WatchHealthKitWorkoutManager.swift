@@ -42,7 +42,7 @@ final class WatchHealthKitWorkoutManager: NSObject {
     func requestAuthorization() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             authorizationState = .unavailable
-            hrUnavailableReason = "Health unavailable"
+            hrUnavailableReason = "Salud no disponible"
             return
         }
 
@@ -50,7 +50,7 @@ final class WatchHealthKitWorkoutManager: NSObject {
               let energy = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)
         else {
             authorizationState = .unavailable
-            hrUnavailableReason = "Health unavailable"
+            hrUnavailableReason = "Salud no disponible"
             return
         }
 
@@ -66,14 +66,14 @@ final class WatchHealthKitWorkoutManager: NSObject {
             let status = healthStore.authorizationStatus(for: HKObjectType.workoutType())
             if status == .sharingDenied {
                 authorizationState = .denied
-                hrUnavailableReason = "HR unavailable"
+                hrUnavailableReason = "FC no disponible"
             } else {
                 authorizationState = .authorized
                 hrUnavailableReason = nil
             }
         } catch {
             authorizationState = .denied
-            hrUnavailableReason = "HR unavailable"
+            hrUnavailableReason = "FC no disponible"
         }
     }
 
@@ -114,7 +114,7 @@ final class WatchHealthKitWorkoutManager: NSObject {
             session = nil
             builder = nil
             isWorkoutActive = false
-            hrUnavailableReason = "HR unavailable"
+            hrUnavailableReason = "FC no disponible"
         }
     }
 
@@ -208,7 +208,7 @@ extension WatchHealthKitWorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         Task { @MainActor in
             self.isWorkoutActive = false
-            self.hrUnavailableReason = "HR unavailable"
+            self.hrUnavailableReason = "FC no disponible"
         }
     }
 }

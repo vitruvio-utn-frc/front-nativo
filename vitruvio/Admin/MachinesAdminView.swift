@@ -30,12 +30,12 @@ struct MachinesAdminView: View {
                 Section { Text(error).foregroundStyle(.red).font(.caption) }
             }
 
-            Section("Types") {
+            Section("Tipos") {
                 if types.isEmpty {
                     ContentUnavailableView(
-                        "No machine types yet",
+                        "Todavía no hay tipos de máquina",
                         systemImage: "wrench.and.screwdriver",
-                        description: Text("Tap + → Add type before creating machines.")
+                        description: Text("Tocá + → Agregar tipo antes de crear máquinas.")
                     )
                 } else {
                     ForEach(types) { type in
@@ -60,25 +60,25 @@ struct MachinesAdminView: View {
                 }
             }
 
-            Section("Machines") {
+            Section("Máquinas") {
                 if machines.isEmpty {
                     ContentUnavailableView(
-                        "No machines yet",
+                        "Todavía no hay máquinas",
                         systemImage: "dumbbell",
-                        description: Text("Tap + → Add machine.")
+                        description: Text("Tocá + → Agregar máquina.")
                     )
                 } else {
                     ForEach(machines) { machine in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(machine.displayName.isEmpty ? machine.id : machine.displayName)
                             if let typeId = machine.machineTypeId {
-                                Text(typeNameById[typeId] ?? "type \(typeId)")
+                                Text(typeNameById[typeId] ?? "tipo \(typeId)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button("Delete", role: .destructive) {
+                            Button("Eliminar", role: .destructive) {
                                 Task { await delete(machine.id) }
                             }
                         }
@@ -87,28 +87,28 @@ struct MachinesAdminView: View {
             }
 
             Section {
-                Text("API machines are global (no gymId). Managed here for admin convenience.")
+                Text("Las máquinas de la API son globales (sin gymId). Se administran acá por comodidad.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Machines")
+        .navigationTitle("Máquinas")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
                         showCreateType = true
                     } label: {
-                        Label("Add type", systemImage: "tag")
+                        Label("Agregar tipo", systemImage: "tag")
                     }
                     Button {
                         showCreateMachine = true
                     } label: {
-                        Label("Add machine", systemImage: "dumbbell")
+                        Label("Agregar máquina", systemImage: "dumbbell")
                     }
                     .disabled(types.isEmpty)
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label("Agregar", systemImage: "plus")
                 }
                 .disabled(isWorking)
             }
@@ -118,7 +118,7 @@ struct MachinesAdminView: View {
         .refreshable { await reload() }
         .sheet(isPresented: $showCreateType) {
             CreateMachineTypeSheet(service: admin.service) { created in
-                status = "Type “\(created.name)” created."
+                status = "Tipo “\(created.name)” creado."
                 showCreateType = false
                 Task { await reload() }
             } onCancel: {
@@ -127,7 +127,7 @@ struct MachinesAdminView: View {
         }
         .sheet(item: $editingType) { type in
             EditMachineTypeSheet(type: type, service: admin.service) { updated in
-                status = "Type “\(updated.name)” updated."
+                status = "Tipo “\(updated.name)” actualizado."
                 editingType = nil
                 Task { await reload() }
             } onCancel: {
@@ -137,7 +137,7 @@ struct MachinesAdminView: View {
         .sheet(isPresented: $showCreateMachine) {
             CreateMachineSheet(service: admin.service, types: types) { created in
                 let label = created.displayName.isEmpty ? created.id : created.displayName
-                status = "Machine “\(label)” created."
+                status = "Máquina “\(label)” creada."
                 showCreateMachine = false
                 Task { await reload() }
             } onCancel: {
@@ -162,7 +162,7 @@ struct MachinesAdminView: View {
     private func delete(_ id: String) async {
         do {
             try await admin.service.deleteMachine(id: id)
-            status = "Machine deleted"
+            status = "Máquina eliminada"
             error = nil
             await reload()
         } catch {
@@ -188,22 +188,22 @@ private struct CreateMachineTypeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Machine type") {
-                    TextField("Name", text: $name)
-                    TextField("Description (optional)", text: $description)
+                Section("Tipo de máquina") {
+                    TextField("Nombre", text: $name)
+                    TextField("Descripción (opcional)", text: $description)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New type")
+            .navigationTitle("Nuevo tipo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -261,22 +261,22 @@ private struct EditMachineTypeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Machine type") {
-                    TextField("Name", text: $name)
-                    TextField("Description (optional)", text: $description)
+                Section("Tipo de máquina") {
+                    TextField("Nombre", text: $name)
+                    TextField("Descripción (opcional)", text: $description)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("Edit type")
+            .navigationTitle("Editar tipo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
+                    Button("Guardar") { Task { await save() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -337,29 +337,29 @@ private struct CreateMachineSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Type") {
-                    Picker("Machine type", selection: $typeId) {
+                Section("Tipo") {
+                    Picker("Tipo de máquina", selection: $typeId) {
                         ForEach(types) { type in
                             Text(type.name).tag(Optional(type.id))
                         }
                     }
                 }
-                Section("Machine") {
-                    TextField("Brand", text: $brand)
-                    TextField("Model", text: $model)
+                Section("Máquina") {
+                    TextField("Marca", text: $brand)
+                    TextField("Modelo", text: $model)
                 }
                 if let error {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New machine")
+            .navigationTitle("Nueva máquina")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }

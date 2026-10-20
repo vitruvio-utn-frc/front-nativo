@@ -16,7 +16,7 @@ struct ClientTrainingHomeView: View {
             if let model {
                 plansList(model)
             } else {
-                ProgressView("Loading training…")
+                ProgressView("Cargando entrenamiento…")
             }
         }
         .task {
@@ -35,18 +35,18 @@ struct ClientTrainingHomeView: View {
     private func plansList(_ model: ClientTrainingModel) -> some View {
         List {
             if let snapshot = model.activeSession.snapshot {
-                Section("Active session") {
+                Section("Sesión activa") {
                     Button {
                         showActiveSession = true
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(snapshot.planName ?? "Workout")
-                            Text("\(snapshot.executionCount) exercises · \(snapshot.setCount) sets")
+                            Text(snapshot.planName ?? "Entrenamiento")
+                            Text("\(snapshot.executionCount) ejercicios · \(snapshot.setCount) series")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Button("End session", role: .destructive) {
+                    Button("Finalizar sesión", role: .destructive) {
                         model.endSession()
                     }
                 }
@@ -54,7 +54,7 @@ struct ClientTrainingHomeView: View {
 
             if model.pendingOfflineCount > 0 {
                 Section {
-                    Text("\(model.pendingOfflineCount) offline action(s) pending sync")
+                    Text("\(model.pendingOfflineCount) acción(es) sin conexión pendientes de sincronizar")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -67,14 +67,14 @@ struct ClientTrainingHomeView: View {
                 Section { Text(error).font(.caption).foregroundStyle(.red) }
             }
 
-            Section("My plans") {
+            Section("Mis planes") {
                 if model.isLoading && model.plans.isEmpty {
                     ProgressView()
                 } else if model.plans.isEmpty {
                     ContentUnavailableView(
-                        "No training plans",
+                        "Sin planes de entrenamiento",
                         systemImage: "list.clipboard",
-                        description: Text("When a trainer assigns a plan, it will show up here.")
+                        description: Text("Cuando un entrenador te asigne un plan, va a aparecer acá.")
                     )
                 } else {
                     ForEach(model.plans) { plan in
@@ -105,7 +105,7 @@ struct ClientTrainingHomeView: View {
                         showActiveSession = true
                     }
                 } else {
-                    Text("Plan not found")
+                    Text("Plan no encontrado")
                 }
             case .session(let id):
                 if model.isActiveSession(id) {
@@ -139,25 +139,25 @@ struct TrainingPlanDetailView: View {
     var body: some View {
         List {
             Section("Plan") {
-                LabeledContent("Name", value: plan.name)
+                LabeledContent("Nombre", value: plan.name)
                 if let description = plan.description, !description.isEmpty {
                     Text(description)
                 }
                 if !plan.durationLabel.isEmpty {
-                    LabeledContent("Duration", value: plan.durationLabel)
+                    LabeledContent("Duración", value: plan.durationLabel)
                 }
             }
 
-            Section("Sessions on this plan") {
+            Section("Sesiones de este plan") {
                 if model.planSessions.isEmpty {
-                    Text("No prior sessions — start one to begin logging.")
+                    Text("Sin sesiones previas: iniciá una para empezar a registrar.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(model.planSessions) { session in
                         NavigationLink(value: TrainingRoute.session(session.id)) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(model.isActiveSession(session.id) ? "Active session" : "Session")
+                                Text(model.isActiveSession(session.id) ? "Sesión activa" : "Sesión")
                                     .font(.subheadline)
                                 Text(session.id)
                                     .font(.caption2)
@@ -177,7 +177,7 @@ struct TrainingPlanDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Start") {
+                Button("Iniciar") {
                     Task {
                         if await model.startSession(plan: plan) != nil {
                             onStarted()
@@ -199,17 +199,17 @@ struct PastTrainingSessionView: View {
 
     var body: some View {
         List {
-            Section("Session") {
-                LabeledContent("Session id", value: sessionId)
+            Section("Sesión") {
+                LabeledContent("ID de sesión", value: sessionId)
             }
             if let error = model.lastError {
                 Section { Text(error).font(.caption).foregroundStyle(.red) }
             }
-            Section("Exercises") {
+            Section("Ejercicios") {
                 if model.isLoading && model.detailExecutions.isEmpty {
                     ProgressView()
                 } else if model.detailExecutions.isEmpty {
-                    Text("No exercises logged in this session.")
+                    Text("No se registraron ejercicios en esta sesión.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -219,7 +219,7 @@ struct PastTrainingSessionView: View {
                                 .font(.headline)
                             let sets = model.detailSetsByExecution[execution.id] ?? []
                             if sets.isEmpty {
-                                Text("No sets")
+                                Text("Sin series")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             } else {
@@ -233,7 +233,7 @@ struct PastTrainingSessionView: View {
                 }
             }
         }
-        .navigationTitle("Session")
+        .navigationTitle("Sesión")
         .navigationBarTitleDisplayMode(.inline)
         .overlay { if model.isLoading { ProgressView() } }
         .task { await model.loadSessionDetail(sessionId: sessionId) }
@@ -255,14 +255,14 @@ struct ActiveTrainingSessionView: View {
     var body: some View {
         List {
             if let snapshot = model.activeSession.snapshot {
-                Section("Session") {
+                Section("Sesión") {
                     LabeledContent("Plan", value: snapshot.planName ?? "—")
-                    LabeledContent("Session id", value: snapshot.sessionId)
-                    LabeledContent("Started", value: snapshot.startedAt.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("ID de sesión", value: snapshot.sessionId)
+                    LabeledContent("Inicio", value: snapshot.startedAt.formatted(date: .abbreviated, time: .shortened))
                 }
             } else {
                 Section {
-                    Text("No active session")
+                    Text("Sin sesión activa")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -275,8 +275,8 @@ struct ActiveTrainingSessionView: View {
                 Section("Apple Watch") {
                     Text(
                         WatchConnectivityBridge.shared.isReachable
-                            ? "Waiting for Watch workout…"
-                            : "Watch not linked"
+                            ? "Esperando el entrenamiento del Watch…"
+                            : "Watch sin vincular"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -285,7 +285,7 @@ struct ActiveTrainingSessionView: View {
 
             if model.pendingOfflineCount > 0 {
                 Section {
-                    Text("\(model.pendingOfflineCount) offline action(s) pending")
+                    Text("\(model.pendingOfflineCount) acción(es) sin conexión pendientes")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
@@ -298,9 +298,9 @@ struct ActiveTrainingSessionView: View {
                 Section { Text(error).font(.caption).foregroundStyle(.red) }
             }
 
-            Section("Exercises") {
+            Section("Ejercicios") {
                 if model.executions.isEmpty {
-                    Text("Add an exercise to start logging sets.")
+                    Text("Agregá un ejercicio para empezar a registrar series.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -310,7 +310,7 @@ struct ActiveTrainingSessionView: View {
                             .font(.headline)
                         let sets = model.setsByExecution[execution.id] ?? []
                         if sets.isEmpty {
-                            Text("No sets yet")
+                            Text("Todavía no hay series")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         } else {
@@ -320,7 +320,7 @@ struct ActiveTrainingSessionView: View {
                         }
                         HStack {
                             TextField(
-                                "Reps",
+                                "Repeticiones",
                                 text: Binding(
                                     get: { repsText[execution.id] ?? "10" },
                                     set: { repsText[execution.id] = $0 }
@@ -328,13 +328,13 @@ struct ActiveTrainingSessionView: View {
                             )
                             .keyboardType(.numberPad)
                             .frame(maxWidth: 80)
-                            Button("Log set") {
+                            Button("Registrar serie") {
                                 let reps = Int(repsText[execution.id] ?? "10") ?? 10
                                 Task { await model.logSet(executionId: execution.id, reps: reps) }
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(model.isWorking)
-                            Button("Complete") {
+                            Button("Completar") {
                                 Task { await model.completeExercise(executionId: execution.id) }
                             }
                             .disabled(model.isWorking)
@@ -344,14 +344,14 @@ struct ActiveTrainingSessionView: View {
                 }
             }
         }
-        .navigationTitle("Active session")
+        .navigationTitle("Sesión activa")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showAddExercise = true
                 } label: {
-                    Label("Add exercise", systemImage: "plus")
+                    Label("Agregar ejercicio", systemImage: "plus")
                 }
                 .disabled(model.activeSession.snapshot == nil || model.isWorking)
             }
@@ -373,10 +373,10 @@ struct ActiveTrainingSessionView: View {
                         }
                     }
                 }
-                .navigationTitle("Add exercise")
+                .navigationTitle("Agregar ejercicio")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showAddExercise = false }
+                        Button("Cancelar") { showAddExercise = false }
                     }
                 }
             }
@@ -403,19 +403,19 @@ private struct WatchVitalsStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let bpm = metrics.heartRateBPM {
-                LabeledContent("Heart rate", value: "\(Int(bpm.rounded())) bpm")
+                LabeledContent("Frecuencia cardíaca", value: "\(Int(bpm.rounded())) bpm")
             }
             if let elapsed = metrics.elapsedSeconds {
-                LabeledContent("Workout time", value: Self.formatElapsed(elapsed))
+                LabeledContent("Tiempo de entrenamiento", value: Self.formatElapsed(elapsed))
             }
             if let kcal = metrics.activeEnergyKilocalories {
-                LabeledContent("Active energy", value: "\(Int(kcal.rounded())) kcal")
+                LabeledContent("Energía activa", value: "\(Int(kcal.rounded())) kcal")
             }
             if metrics.heartRateBPM == nil,
                metrics.elapsedSeconds == nil,
                metrics.activeEnergyKilocalories == nil
             {
-                Text("Watch workout active — no samples yet")
+                Text("Entrenamiento del Watch activo: todavía sin muestras")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

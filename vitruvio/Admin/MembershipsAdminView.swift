@@ -32,12 +32,12 @@ struct MembershipsAdminView: View {
                 Section { Text(error).foregroundStyle(.red).font(.caption) }
             }
 
-            Section("Catalog · \(admin.gymName)") {
+            Section("Catálogo · \(admin.gymName)") {
                 if memberships.isEmpty {
                     ContentUnavailableView(
-                        "No memberships yet",
+                        "Todavía no hay membresías",
                         systemImage: "creditcard",
-                        description: Text("Tap + to create a membership.")
+                        description: Text("Tocá + para crear una membresía.")
                     )
                 }
                 ForEach(memberships) { item in
@@ -50,32 +50,32 @@ struct MembershipsAdminView: View {
                         }
                         Spacer()
                         if linkedIds.contains(item.id) {
-                            Button("Unlink") {
+                            Button("Desvincular") {
                                 Task { await unlink(item.id) }
                             }
                             .font(.caption)
                         } else {
-                            Button("Link to gym") {
+                            Button("Vincular al gimnasio") {
                                 Task { await link(item.id) }
                             }
                             .font(.caption)
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button("Delete", role: .destructive) {
+                        Button("Eliminar", role: .destructive) {
                             Task { await delete(item.id) }
                         }
                     }
                 }
             }
         }
-        .navigationTitle("Memberships")
+        .navigationTitle("Membresías")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     showCreate = true
                 } label: {
-                    Label("Add membership", systemImage: "plus")
+                    Label("Agregar membresía", systemImage: "plus")
                 }
                 .disabled(isWorking)
             }
@@ -89,7 +89,7 @@ struct MembershipsAdminView: View {
                 gymId: admin.gymId,
                 gymName: admin.gymName
             ) { created in
-                status = "Created “\(created.name)” and linked to \(admin.gymName)."
+                status = "“\(created.name)” creada y vinculada a \(admin.gymName)."
                 showCreate = false
                 Task { await reload() }
             } onCancel: {
@@ -120,7 +120,7 @@ struct MembershipsAdminView: View {
     private func link(_ id: String) async {
         do {
             try await admin.service.linkMembership(gymId: admin.gymId, membershipId: id)
-            status = "Linked to gym"
+            status = "Vinculada al gimnasio"
             error = nil
             await reload()
         } catch {
@@ -131,7 +131,7 @@ struct MembershipsAdminView: View {
     private func unlink(_ id: String) async {
         do {
             try await admin.service.unlinkMembership(gymId: admin.gymId, membershipId: id)
-            status = "Unlinked from gym"
+            status = "Desvinculada del gimnasio"
             error = nil
             await reload()
         } catch {
@@ -145,7 +145,7 @@ struct MembershipsAdminView: View {
                 try await admin.service.unlinkMembership(gymId: admin.gymId, membershipId: id)
             }
             try await admin.service.deleteMembership(id: id)
-            status = "Membership deleted"
+            status = "Membresía eliminada"
             error = nil
             await reload()
         } catch {
@@ -177,16 +177,16 @@ private struct CreateMembershipSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Membership") {
-                    TextField("Name", text: $name)
-                    TextField("Price", text: $price)
+                Section("Membresía") {
+                    TextField("Nombre", text: $name)
+                    TextField("Precio", text: $price)
                         .keyboardType(.decimalPad)
-                    TextField("Duration (days)", text: $days)
+                    TextField("Duración (días)", text: $days)
                         .keyboardType(.numberPad)
                 }
                 Section {
-                    Toggle("Link to \(gymName)", isOn: $linkToGym)
-                    Text("Active gym for this admin session.")
+                    Toggle("Vincular a \(gymName)", isOn: $linkToGym)
+                    Text("Gimnasio activo de esta sesión de admin.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -194,14 +194,14 @@ private struct CreateMembershipSheet: View {
                     Section { Text(error).foregroundStyle(.red).font(.caption) }
                 }
             }
-            .navigationTitle("New membership")
+            .navigationTitle("Nueva membresía")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancelar", action: onCancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") { Task { await create() } }
+                    Button("Crear") { Task { await create() } }
                         .disabled(!canSave || isWorking)
                 }
             }
@@ -212,7 +212,7 @@ private struct CreateMembershipSheet: View {
     private func create() async {
         guard let priceValue = Double(price.replacingOccurrences(of: ",", with: ".")),
               let dayValue = Int(days) else {
-            error = "Price and days must be numbers"
+            error = "El precio y los días deben ser números"
             return
         }
         isWorking = true

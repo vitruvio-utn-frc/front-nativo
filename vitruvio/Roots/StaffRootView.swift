@@ -15,11 +15,11 @@ struct StaffRootView: View {
                     ContentUnavailableView(
                         "Staff",
                         systemImage: "person.2",
-                        description: Text("Clients, exercises, and plans land in staff-operations")
+                        description: Text("Clientes, ejercicios y planes: próximamente")
                     )
                 }
             }
-            .tabItem { Label("Operations", systemImage: "person.2") }
+            .tabItem { Label("Operaciones", systemImage: "person.2") }
         }
     }
 }

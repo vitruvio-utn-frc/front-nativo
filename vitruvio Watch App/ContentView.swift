@@ -36,7 +36,7 @@ struct ContentView: View {
     private var phoneLinkLabel: some View {
         let bridge = WatchConnectivityBridge.shared
         return Label(
-            bridge.isReachable ? "iPhone linked" : (bridge.isActivated ? "Waiting for iPhone…" : "Connecting…"),
+            bridge.isReachable ? "iPhone vinculado" : (bridge.isActivated ? "Esperando al iPhone…" : "Conectando…"),
             systemImage: bridge.isReachable ? "iphone.gen3.radiowaves.left.and.right" : "iphone"
         )
         .font(.caption2)
@@ -48,7 +48,7 @@ struct ContentView: View {
             Text("Vitruvio")
                 .font(.headline)
             phoneLinkLabel
-            Text("Sign in on iPhone")
+            Text("Iniciá sesión en el iPhone")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -57,7 +57,7 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             } else {
-                Text("sync: waiting…")
+                Text("sync: esperando…")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -65,7 +65,7 @@ struct ContentView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .lineLimit(2)
-            Button("Refresh") {
+            Button("Actualizar") {
                 WatchConnectivityBridge.shared.refreshDiagnostics()
                 WatchConnectivityBridge.shared.applyReceivedApplicationContext(force: true)
                 session.requestSync()
@@ -86,18 +86,18 @@ struct ContentView: View {
             Text("Vitruvio")
                 .font(.headline)
             phoneLinkLabel
-            Text("Client only")
+            Text("Solo clientes")
                 .font(.caption)
-            Text("Switch to a client role on iPhone.")
+            Text("Cambiá a un rol de cliente en el iPhone.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             if let role = session.activeRoleName {
-                Text("Active: \(role)")
+                Text("Activo: \(role)")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
-            Button("Refresh") { session.requestSync() }
+            Button("Actualizar") { session.requestSync() }
                 .font(.caption2)
         }
         .padding()

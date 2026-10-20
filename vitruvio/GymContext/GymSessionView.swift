@@ -17,7 +17,7 @@ struct GymSessionView: View {
         Group {
             switch model.phase {
             case .loading:
-                ProgressView("Loading gym roles…")
+                ProgressView("Cargando roles del gimnasio…")
             case .pickMembership:
                 MembershipPickerView(model: model)
             case .active:
@@ -51,19 +51,19 @@ struct GymSessionView: View {
 
     private var unsupportedView: some View {
         VStack(spacing: 16) {
-            Text("Unsupported role")
+            Text("Rol no compatible")
                 .font(.title3.bold())
             if let name = model.gymContext.activeMembership?.roleName {
-                Text("Role “\(name)” has no app shell yet.")
+                Text("El rol “\(name)” todavía no tiene pantalla en la app.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
             }
             if model.gymContext.memberships.count > 1 {
-                Button("Choose another membership") {
+                Button("Elegir otra membresía") {
                     model.showPicker()
                 }
             }
-            Button("Sign out", role: .destructive) {
+            Button("Cerrar sesión", role: .destructive) {
                 Task { await model.clearAndSignOut() }
             }
         }
@@ -72,7 +72,7 @@ struct GymSessionView: View {
 
     private var failedView: some View {
         VStack(spacing: 16) {
-            Text("Couldn't load gym context")
+            Text("No se pudo cargar el contexto del gimnasio")
                 .font(.title3.bold())
             if let error = model.lastError {
                 Text(error)
@@ -80,11 +80,11 @@ struct GymSessionView: View {
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
             }
-            Button("Retry") {
+            Button("Reintentar") {
                 Task { await model.load() }
             }
             .buttonStyle(.borderedProminent)
-            Button("Sign out", role: .destructive) {
+            Button("Cerrar sesión", role: .destructive) {
                 Task { await model.clearAndSignOut() }
             }
         }

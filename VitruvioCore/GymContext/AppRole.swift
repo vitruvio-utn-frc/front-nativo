@@ -85,7 +85,7 @@ public enum RoleShell: String, Codable, CaseIterable, Sendable, Hashable, Identi
 
     public var displayName: String {
         switch self {
-        case .client: "Client"
+        case .client: "Cliente"
         case .staff: "Staff"
         case .admin: "Admin"
         }

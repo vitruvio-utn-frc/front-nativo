@@ -29,8 +29,8 @@ struct AdminRolesView: View {
     var body: some View {
         List {
             Section {
-                Toggle("Pending only", isOn: $showPendingOnly)
-                TextField("Search name or email", text: $query)
+                Toggle("Solo pendientes", isOn: $showPendingOnly)
+                TextField("Buscar por nombre o email", text: $query)
                     .textInputAutocapitalization(.never)
             }
 
@@ -41,9 +41,9 @@ struct AdminRolesView: View {
                 Section { Text(actionError).foregroundStyle(.red).font(.caption) }
             }
 
-            Section(showPendingOnly ? "Pending users" : "Users") {
+            Section(showPendingOnly ? "Usuarios pendientes" : "Usuarios") {
                 if filtered.isEmpty {
-                    Text(admin.isLoading ? "Loading users…" : "No users match")
+                    Text(admin.isLoading ? "Cargando usuarios…" : "Ningún usuario coincide")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(filtered) { row in
@@ -54,7 +54,7 @@ struct AdminRolesView: View {
                             HStack {
                                 Text(row.user.displayName)
                                 if row.isPending {
-                                    Text("PENDING")
+                                    Text("PENDIENTE")
                                         .font(.caption2.bold())
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
@@ -67,7 +67,7 @@ struct AdminRolesView: View {
                                 Text(email).font(.caption).foregroundStyle(.secondary)
                             }
                             if row.rolesInGym.isEmpty {
-                                Text("No roles in this gym")
+                                Text("Sin roles en este gimnasio")
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
                             } else {
@@ -79,7 +79,7 @@ struct AdminRolesView: View {
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         ForEach(row.rolesInGym, id: \.self) { role in
-                            Button("Revoke \(role.name)", role: .destructive) {
+                            Button("Quitar \(role.name)", role: .destructive) {
                                 pendingRevoke = PendingRoleRevoke(user: row, role: role)
                             }
                         }
@@ -104,15 +104,15 @@ struct AdminRolesView: View {
             ) {
                 manageTarget = nil
             } onAssigned: { roleName, displayName in
-                actionStatus = "Assigned \(roleName) to \(displayName)"
+                actionStatus = "Se asignó \(roleName) a \(displayName)"
                 actionError = nil
             } onRevoked: { roleName, displayName in
-                actionStatus = "Revoked \(roleName) from \(displayName)"
+                actionStatus = "Se quitó \(roleName) a \(displayName)"
                 actionError = nil
             }
         }
         .confirmationDialog(
-            "Revoke role?",
+            "¿Quitar rol?",
             isPresented: Binding(
                 get: { pendingRevoke != nil && manageTarget == nil },
                 set: { if !$0 { pendingRevoke = nil } }
@@ -120,16 +120,16 @@ struct AdminRolesView: View {
             titleVisibility: .visible
         ) {
             if let pending = pendingRevoke {
-                Button("Revoke \(pending.role.name)", role: .destructive) {
+                Button("Quitar \(pending.role.name)", role: .destructive) {
                     Task { await revokeFromList(pending) }
                 }
             }
-            Button("Cancel", role: .cancel) {
+            Button("Cancelar", role: .cancel) {
                 pendingRevoke = nil
             }
         } message: {
             if let pending = pendingRevoke {
-                Text("Remove “\(pending.role.name)” from \(pending.user.user.displayName) in \(admin.gymName).")
+                Text("Se quitará “\(pending.role.name)” a \(pending.user.user.displayName) en \(admin.gymName).")
             }
         }
         .task { await admin.reloadDirectory() }
@@ -148,7 +148,7 @@ struct AdminRolesView: View {
                 gymId: admin.gymId,
                 roleId: pending.role.id
             )
-            actionStatus = "Revoked \(pending.role.name) from \(pending.user.user.displayName)"
+            actionStatus = "Se quitó \(pending.role.name) a \(pending.user.user.displayName)"
             await admin.reloadDirectory()
         } catch {
             actionError = error.localizedDescription
@@ -176,16 +176,16 @@ private struct ManageRolesSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("User") {
+                Section("Usuario") {
                     Text(target.user.displayName)
                     if let email = target.user.email {
                         Text(email).foregroundStyle(.secondary)
                     }
                 }
 
-                Section("Roles in \(admin.gymName)") {
+                Section("Roles en \(admin.gymName)") {
                     if target.rolesInGym.isEmpty {
-                        Text("No roles assigned")
+                        Text("Sin roles asignados")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(target.rolesInGym, id: \.self) { role in
@@ -197,7 +197,7 @@ private struct ManageRolesSheet: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Button("Revoke", role: .destructive) {
+                                Button("Quitar", role: .destructive) {
                                     pendingRevoke = PendingRoleRevoke(user: target, role: role)
                                 }
                                 .disabled(isWorking)
@@ -206,13 +206,13 @@ private struct ManageRolesSheet: View {
                     }
                 }
 
-                Section("Assign role") {
-                    Picker("Role", selection: $selectedRole) {
+                Section("Asignar rol") {
+                    Picker("Rol", selection: $selectedRole) {
                         ForEach(AppRole.allCases) { role in
                             Text(role.name).tag(role)
                         }
                     }
-                    Button("Assign \(selectedRole.name)") {
+                    Button("Asignar \(selectedRole.name)") {
                         Task { await assign() }
                     }
                     .disabled(isWorking || target.rolesInGym.contains(selectedRole))
@@ -224,11 +224,11 @@ private struct ManageRolesSheet: View {
                     }
                 }
             }
-            .navigationTitle("Manage roles")
+            .navigationTitle("Administrar roles")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done", action: onDone)
+                    Button("Listo", action: onDone)
                 }
                 if isWorking {
                     ToolbarItem(placement: .status) {
@@ -237,7 +237,7 @@ private struct ManageRolesSheet: View {
                 }
             }
             .confirmationDialog(
-                "Revoke role?",
+                "¿Quitar rol?",
                 isPresented: Binding(
                     get: { pendingRevoke != nil },
                     set: { if !$0 { pendingRevoke = nil } }
@@ -245,16 +245,16 @@ private struct ManageRolesSheet: View {
                 titleVisibility: .visible
             ) {
                 if let pending = pendingRevoke {
-                    Button("Revoke \(pending.role.name)", role: .destructive) {
+                    Button("Quitar \(pending.role.name)", role: .destructive) {
                         Task { await revoke(pending) }
                     }
                 }
-                Button("Cancel", role: .cancel) {
+                Button("Cancelar", role: .cancel) {
                     pendingRevoke = nil
                 }
             } message: {
                 if let pending = pendingRevoke {
-                    Text("Remove “\(pending.role.name)” from \(pending.user.user.displayName) in \(admin.gymName).")
+                    Text("Se quitará “\(pending.role.name)” a \(pending.user.user.displayName) en \(admin.gymName).")
                 }
             }
         }

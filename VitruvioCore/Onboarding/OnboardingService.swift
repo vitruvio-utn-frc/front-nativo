@@ -113,19 +113,19 @@ public final class OnboardingService: Sendable {
     private func validate(_ request: CreateUserRequest) throws {
         func require(_ value: String, _ label: String) throws {
             if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                throw OnboardingError.validation("\(label) is required")
+                throw OnboardingError.validation("\(label) es obligatorio")
             }
         }
         guard request.idNumber > 0 else {
-            throw OnboardingError.validation("ID number must be a positive integer")
+            throw OnboardingError.validation("El DNI debe ser un entero positivo")
         }
-        try require(request.firstName, "First name")
-        try require(request.lastName, "Last name")
+        try require(request.firstName, "Nombre")
+        try require(request.lastName, "Apellido")
         try require(request.email, "Email")
         guard request.genderId > 0 else {
-            throw OnboardingError.validation("Gender is required")
+            throw OnboardingError.validation("El género es obligatorio")
         }
-        guard request.height > 0 else { throw OnboardingError.validation("Height must be positive") }
-        guard request.weight > 0 else { throw OnboardingError.validation("Weight must be positive") }
+        guard request.height > 0 else { throw OnboardingError.validation("La altura debe ser positiva") }
+        guard request.weight > 0 else { throw OnboardingError.validation("El peso debe ser positivo") }
     }
 }

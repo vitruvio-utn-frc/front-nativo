@@ -27,7 +27,7 @@ public struct GymContextService: Sendable {
                 return GymMembership(
                     userId: row.userId,
                     gymId: row.gymId,
-                    gymName: gym?.name ?? "Gym",
+                    gymName: gym?.name ?? "Gimnasio",
                     companyId: gym?.companyId,
                     roleId: roleId,
                     roleName: roleDTO?.name ?? appRole?.name ?? "role-\(roleId)",
