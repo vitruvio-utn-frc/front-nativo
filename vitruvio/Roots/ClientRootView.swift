@@ -36,9 +36,16 @@ struct ClientRootView: View {
                         }
 
                         Section {
-                            Text("Membresía y perfil: próximamente")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            NavigationLink {
+                                ClientProfileView(session: model)
+                            } label: {
+                                Label("Mi perfil", systemImage: "person.text.rectangle")
+                            }
+                            NavigationLink {
+                                ClientMembershipsView(session: model)
+                            } label: {
+                                Label("Membresías", systemImage: "creditcard")
+                            }
                         }
                     }
                 }

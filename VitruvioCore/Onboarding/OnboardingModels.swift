@@ -84,7 +84,8 @@ public struct UserDTO: Codable, Sendable, Identifiable, Hashable {
         idNumber = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("idNumber"))
         height = try container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("height"))
         weight = try container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("weight"))
-        birthDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("birthDate"))
+        birthDate = (try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("birthDate")))
+            .flatMap { BirthDateCoding.date(from: $0) }
         genderId = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("genderId"))
         photoUrl = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("photoUrl"))
     }
@@ -207,5 +208,24 @@ extension KeyedDecodingContainer where K == DynamicCodingKeys {
             return Int(string)
         }
         return nil
+    }
+}
+
+/// The API stores `birthDate` as a zone-less `DateTime` (`"2001-10-13T00:00:00"`), which `.iso8601` rejects.
+/// Treated as a calendar date: parsed and sent as local midnight so it never shifts a day.
+enum BirthDateCoding {
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static func date(from string: String) -> Date? {
+        dayFormatter.date(from: String(string.prefix(10)))
+    }
+
+    static func string(from date: Date) -> String {
+        dayFormatter.string(from: date) + "T00:00:00"
     }
 }
