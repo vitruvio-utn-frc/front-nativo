@@ -79,6 +79,10 @@ final class ClientTrainingModel {
         Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.name) })
     }
 
+    func exercise(id: String) -> ExerciseDTO? {
+        exercises.first { $0.id == id }
+    }
+
     func onNetworkTick() async {
         let online = network.isOnline
         if online, (!lastOnline || offlineQueue.pendingCount > 0) {

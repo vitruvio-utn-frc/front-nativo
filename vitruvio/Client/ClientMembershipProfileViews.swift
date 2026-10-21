@@ -9,6 +9,7 @@ import VitruvioCore
 struct ClientMembershipsView: View {
     @Bindable var session: GymSessionModel
     @State private var model: ClientMembershipsModel?
+    @State private var showEnroll = false
     @State private var toast: Toast?
 
     var body: some View {
@@ -63,12 +64,14 @@ struct ClientMembershipsView: View {
                     ContentUnavailableView(
                         "Sin membresías activas",
                         systemImage: "creditcard.trianglebadge.exclamationmark",
-                        description: Text("No tenés membresías en este gimnasio.")
+                        description: Text("No tenés membresías en este gimnasio. Tocá + para contratar una.")
                     )
                 } else {
                     ForEach(model.items) { item in
                         NavigationLink {
-                            ClientMembershipDetailView(item: item, activeGymName: model.gymName)
+                            ClientMembershipDetailView(item: item, model: model) {
+                                toast = .success("Membresía dada de baja")
+                            }
                         } label: {
                             ClientMembershipRow(item: item)
                         }
@@ -77,10 +80,124 @@ struct ClientMembershipsView: View {
             }
         }
         .refreshable { await model.load() }
-        .onChange(of: model.lastError) { _, error in
-            if let error { toast = .error(error) }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Contratar membresía", systemImage: "plus") { showEnroll = true }
+            }
+        }
+        .onChange(of: model.feedbackID) {
+            // While the enroll sheet is open it reports its own errors.
+            if !showEnroll, let error = model.lastError { toast = .error(error) }
         }
         .toast($toast)
+        .sheet(isPresented: $showEnroll) {
+            ClientEnrollMembershipSheet(model: model) {
+                toast = .success("Membresía contratada")
+            }
+        }
+    }
+}
+
+private struct ClientEnrollMembershipSheet: View {
+    let model: ClientMembershipsModel
+    let onEnrolled: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var pending: MembershipDTO?
+    @State private var toast: Toast?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    if model.available.isEmpty {
+                        ContentUnavailableView(
+                            "Sin planes disponibles",
+                            systemImage: "creditcard",
+                            description: Text("Este gimnasio todavía no tiene membresías a la venta.")
+                        )
+                    } else {
+                        ForEach(model.available) { membership in
+                            planRow(membership)
+                        }
+                    }
+                } header: {
+                    Text(model.gymName)
+                } footer: {
+                    Text("El pago en línea todavía no está disponible: la membresía se activa al contratarla.")
+                }
+            }
+            .navigationTitle("Contratar membresía")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+            }
+            .overlay { if model.isWorking { ProgressView() } }
+            .onChange(of: model.feedbackID) {
+                if let error = model.lastError { toast = .error(error) }
+            }
+            .toast($toast)
+            .confirmationDialog(
+                "¿Contratar esta membresía?",
+                isPresented: Binding(
+                    get: { pending != nil },
+                    set: { if !$0 { pending = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pending
+            ) { membership in
+                Button("Contratar “\(membership.name)”") {
+                    Task {
+                        if await model.enroll(in: membership) {
+                            onEnrolled()
+                            dismiss()
+                        }
+                    }
+                }
+                Button("Volver", role: .cancel) {}
+            } message: { membership in
+                Text("Comienza hoy y dura \(membership.durationLabel).")
+            }
+        }
+        .interactiveDismissDisabled(model.isWorking)
+    }
+
+    @ViewBuilder
+    private func planRow(_ membership: MembershipDTO) -> some View {
+        let isActive = model.isActive(membership)
+        Button {
+            pending = membership
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(membership.name)
+                        .font(.headline)
+                    Spacer()
+                    if isActive {
+                        Text("Activa")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
+                    }
+                }
+                if let description = membership.description, !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text(membership.price.formatted(.currency(code: "ARS")))
+                    Text("·")
+                    Text(membership.durationLabel)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+        }
+        .foregroundStyle(.primary)
+        .disabled(isActive || model.isWorking)
     }
 }
 
@@ -117,7 +234,14 @@ private struct ClientMembershipStatusBadge: View {
 
 struct ClientMembershipDetailView: View {
     let item: ClientMembershipItem
-    let activeGymName: String
+    let model: ClientMembershipsModel
+    let onCancelled: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmCancel = false
+    @State private var toast: Toast?
+
+    private var activeGymName: String { model.gymName }
 
     var body: some View {
         List {
@@ -172,9 +296,38 @@ struct ClientMembershipDetailView: View {
                     }
                 }
             }
+
+            if model.canCancel(item) {
+                Section {
+                    Button("Dar de baja", role: .destructive) { confirmCancel = true }
+                        .disabled(model.isWorking)
+                }
+            }
         }
         .navigationTitle(item.name)
         .navigationBarTitleDisplayMode(.inline)
+        .overlay { if model.isWorking { ProgressView() } }
+        .onChange(of: model.feedbackID) {
+            if let error = model.lastError { toast = .error(error) }
+        }
+        .toast($toast)
+        .confirmationDialog(
+            "¿Dar de baja esta membresía?",
+            isPresented: $confirmCancel,
+            titleVisibility: .visible
+        ) {
+            Button("Dar de baja “\(item.name)”", role: .destructive) {
+                Task {
+                    if await model.cancel(item) {
+                        onCancelled()
+                        dismiss()
+                    }
+                }
+            }
+            Button("Volver", role: .cancel) {}
+        } message: {
+            Text("Vence hoy y deja de estar activa. Queda en tu historial.")
+        }
     }
 
     private var remainingDays: Int? {

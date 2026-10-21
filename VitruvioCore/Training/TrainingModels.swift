@@ -61,6 +61,10 @@ public struct ExerciseDTO: Codable, Sendable, Identifiable, Hashable {
     public let name: String
     public let description: String?
     public let caloriesBurnRate: Double?
+    public let exerciseTypeId: Int?
+    public let machineTypeId: Int?
+    public let photoUrl: String?
+    public let videoUrl: String?
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
@@ -68,6 +72,10 @@ public struct ExerciseDTO: Codable, Sendable, Identifiable, Hashable {
         name = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("name")) ?? id
         description = try container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("description"))
         caloriesBurnRate = try? container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("caloriesBurnRate"))
+        exerciseTypeId = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("exerciseTypeId"))
+        machineTypeId = container.decodeLosslessIntIfPresent(forKey: DynamicCodingKeys("machineTypeId"))
+        photoUrl = try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("photoUrl"))
+        videoUrl = try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys("videoUrl"))
     }
 }
 

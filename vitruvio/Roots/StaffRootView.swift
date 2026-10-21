@@ -11,15 +11,18 @@ struct StaffRootView: View {
     var body: some View {
         TabView {
             NavigationStack {
-                RoleShellChrome(model: model, title: "Staff") {
-                    ContentUnavailableView(
-                        "Staff",
-                        systemImage: "person.2",
-                        description: Text("Clientes, ejercicios y planes: próximamente")
-                    )
+                RoleShellChrome(model: model, title: "Clientes") {
+                    StaffClientsHomeView(session: model)
                 }
             }
-            .tabItem { Label("Operaciones", systemImage: "person.2") }
+            .tabItem { Label("Clientes", systemImage: "person.2") }
+
+            NavigationStack {
+                RoleShellChrome(model: model, title: "Ejercicios") {
+                    StaffExercisesHomeView(session: model)
+                }
+            }
+            .tabItem { Label("Ejercicios", systemImage: "dumbbell") }
         }
     }
 }

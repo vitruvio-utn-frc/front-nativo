@@ -21,8 +21,13 @@ struct ClientMembershipItem: Identifiable, Hashable {
 @Observable
 final class ClientMembershipsModel {
     private(set) var items: [ClientMembershipItem] = []
+    /// Plans sold in the active gym that the client can enroll in.
+    private(set) var available: [MembershipDTO] = []
     private(set) var isLoading = false
+    private(set) var isWorking = false
     private(set) var lastError: String?
+    /// Bumped on every new error so views can show a toast even when the text repeats.
+    private(set) var feedbackID = UUID()
 
     let userId: String
     private(set) var gymId: String
@@ -65,6 +70,9 @@ final class ClientMembershipsModel {
                 catalog.map { ($0.id.lowercased(), $0) },
                 uniquingKeysWith: { first, _ in first }
             )
+            available = catalog
+                .filter { gymMembershipIds.contains($0.id.lowercased()) }
+                .sorted { $0.price < $1.price }
             items = mine
                 .filter { gymMembershipIds.contains($0.membershipId.lowercased()) }
                 .map { userMembership in
@@ -80,9 +88,94 @@ final class ClientMembershipsModel {
                     )
                 }
         } catch {
-            lastError = error.localizedDescription
+            fail(error)
             items = []
+            available = []
         }
+    }
+
+    /// Whether the client already holds an active enrollment in `membership`.
+    func isActive(_ membership: MembershipDTO) -> Bool {
+        items.contains {
+            $0.userMembership.membershipId.caseInsensitiveCompare(membership.id) == .orderedSame
+                && $0.userMembership.isActive
+        }
+    }
+
+    /// Enrolls the client in `membership` starting now. No payment is collected yet (payment gateway pending).
+    func enroll(in membership: MembershipDTO) async -> Bool {
+        guard !isActive(membership) else {
+            fail("Ya tenés esta membresía activa")
+            return false
+        }
+        guard let days = membership.durationDays, days > 0,
+              let end = Calendar.current.date(byAdding: .day, value: days, to: Date())
+        else {
+            fail("La membresía no tiene una duración válida")
+            return false
+        }
+        isWorking = true
+        lastError = nil
+        defer { isWorking = false }
+        do {
+            _ = try await service.createUserMembership(
+                CreateUserMembershipRequest(
+                    memberId: userId,
+                    membershipId: membership.id,
+                    startDate: Date(),
+                    endDate: end
+                )
+            )
+            await load()
+            return lastError == nil
+        } catch {
+            fail(error)
+            return false
+        }
+    }
+
+    /// Whether the enrollment can still be cancelled (it has not ended yet).
+    func canCancel(_ item: ClientMembershipItem) -> Bool {
+        guard let end = item.userMembership.endDate else { return true }
+        return end > Date()
+    }
+
+    /// Ends the enrollment now, keeping it in the history. A future enrollment ends on its start date.
+    func cancel(_ item: ClientMembershipItem) async -> Bool {
+        guard canCancel(item) else {
+            fail("La membresía ya venció")
+            return false
+        }
+        let userMembership = item.userMembership
+        let start = userMembership.startDate ?? Date()
+        isWorking = true
+        lastError = nil
+        defer { isWorking = false }
+        do {
+            _ = try await service.updateUserMembership(
+                id: userMembership.id,
+                CreateUserMembershipRequest(
+                    memberId: userMembership.memberId,
+                    membershipId: userMembership.membershipId,
+                    startDate: start,
+                    endDate: max(Date(), start)
+                )
+            )
+            await load()
+            return lastError == nil
+        } catch {
+            fail(error)
+            return false
+        }
+    }
+
+    private func fail(_ error: Error) {
+        fail(error.localizedDescription)
+    }
+
+    private func fail(_ message: String) {
+        lastError = message
+        feedbackID = UUID()
     }
 }
 

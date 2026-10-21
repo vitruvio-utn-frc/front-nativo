@@ -141,6 +141,11 @@ public struct AdminService: Sendable {
         try await api.post("api/user-memberships", body: request)
     }
 
+    /// Full replace (`PUT`); the update request has the same shape as create.
+    public func updateUserMembership(id: String, _ request: CreateUserMembershipRequest) async throws -> UserMembershipDTO {
+        try await api.put("api/user-memberships/\(id)", body: request)
+    }
+
     public func deleteUserMembership(id: String) async throws {
         try await api.delete("api/user-memberships/\(id)")
     }

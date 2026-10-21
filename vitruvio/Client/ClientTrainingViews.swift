@@ -217,6 +217,7 @@ struct PastTrainingSessionView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(model.exerciseNameById[execution.exerciseId] ?? execution.exerciseId)
                                 .font(.headline)
+                            ExerciseVideoButton(exercise: model.exercise(id: execution.exerciseId))
                             let sets = model.detailSetsByExecution[execution.id] ?? []
                             if sets.isEmpty {
                                 Text("Sin series")
@@ -308,6 +309,7 @@ struct ActiveTrainingSessionView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(model.exerciseNameById[execution.exerciseId] ?? execution.exerciseId)
                             .font(.headline)
+                        ExerciseVideoButton(exercise: model.exercise(id: execution.exerciseId))
                         let sets = model.setsByExecution[execution.id] ?? []
                         if sets.isEmpty {
                             Text("Todavía no hay series")
