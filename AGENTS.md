@@ -15,11 +15,12 @@ Roles de usuario: **Client**, **Staff**, **Admin**. Un usuario puede pertenecer 
 | `vitruvio/` | Target iPhone (SwiftUI). Un directorio por área: `Auth`, `Onboarding`, `GymContext`, `Roots` (shells por rol), `Client`, `Admin`, `Companion` (puente con el Watch) |
 | `vitruvio Watch App/` | Target watchOS: entrenamiento, sesión, HealthKit workout |
 | `VitruvioCore/` | Framework compartido iPhone + Watch: `AppConfig`, `Auth`, `Networking`, `Session`, `GymContext`, `Onboarding`, `Training`, `Admin`, `Offline`, `Connectivity` |
+| `VitruvioCoreTests/` | Tests unitarios de `VitruvioCore` (Swift Testing). Ver "Tests" |
 | `Config/vitruvio-Info.plist` | Info.plist con el esquema URL del callback OAuth |
 | `openspec/` | Specs y changes (flujo spec-driven). Ver abajo |
 | `.agents/skills/`, `.claude/skills/` | Skills (OpenSpec, SwiftUI, concurrencia, SwiftData, watchOS, widgets…) |
 
-Proyecto: `vitruvio.xcodeproj`. Targets/esquemas: `vitruvio`, `vitruvio Watch App`, `VitruvioCore`. Sin Swift Package ni workspace; no hay tests todavía.
+Proyecto: `vitruvio.xcodeproj`. Targets/esquemas: `vitruvio`, `vitruvio Watch App`, `VitruvioCore`, `VitruvioCoreTests`. Sin Swift Package ni workspace.
 
 Plataformas: iOS 18.2+, watchOS 11.2+, `SWIFT_VERSION = 5.0`.
 
@@ -35,6 +36,21 @@ El esquema `vitruvio` también compila el Watch (va embebido): un error en `vitr
 Si el MCP `xcode-tools` está disponible, prefiere `BuildProject`, `RunProject`, `RenderPreview`, `XcodeGrep`, etc.
 
 Los targets `vitruvio`, `vitruvio Watch App` y `VitruvioCore` usan carpetas sincronizadas (`PBXFileSystemSynchronizedRootGroup`): un archivo nuevo dentro de esas carpetas entra solo al target, **no** hay que editar `project.pbxproj`. Verifica igual que compile.
+
+### Tests
+
+Target `VitruvioCoreTests` (Swift Testing, corre en simulador iOS), esquema compartido `VitruvioCoreTests`:
+
+```sh
+xcodebuild -project vitruvio.xcodeproj -scheme VitruvioCoreTests -destination 'platform=iOS Simulator,name=iPhone 17' test
+```
+
+- Cubren la lógica de `VitruvioCore`: progreso y kcal de la corrida, cola offline (orden, ids locales, errores reintentables vs. descartados, flush concurrente), `TrainingExecutionService`, lectura de sesiones prescritas e historial, enlaces de media y el formato del snapshot del companion. Las vistas y el Watch **no** tienen tests: se prueban a mano.
+- La API se simula con `StubServer` (`VitruvioCoreTests/Support/`): cada instancia tiene su propio host, así que las pruebas pueden correr en paralelo. Usa `respond(with:)` para pasar de offline a online dentro de una prueba.
+- Los tests de `TrainingExecutionServiceTests` van `.serialized`: comparten el archivo de la corrida activa. Limpia con `store.clear()`.
+- Dentro de `#expect`/`#require` no se pueden llamar métodos `mutating` ni closures complejas: saca el resultado a una variable local antes.
+- Si un test de "no se escribe nada" revisa la cola, hazlo **antes** del primer `await`: un registro encolado que la cola descarta después como huérfano ocultaría el error.
+- Al tocar la cola o el modelo de ejecución, corre los tests; un cambio de comportamiento debe reflejarse en su prueba y en el spec correspondiente.
 
 ### Probar en el simulador
 
