@@ -2,7 +2,7 @@
 //  CompanionWatchWorkoutLauncher.swift
 //  vitruvio
 //
-//  Opens the Watch companion to start a strength HKWorkoutSession when training
+//  Opens the Watch companion to start an HKWorkoutSession when training
 //  begins on iPhone (supported HealthKit use case).
 //
 
@@ -11,7 +11,7 @@ import HealthKit
 import WatchConnectivity
 
 enum CompanionWatchWorkoutLauncher {
-    /// Launches the Watch app to handle a traditional strength workout.
+    /// Launches the Watch app to handle the training workout (same activity type the Watch uses).
     /// Failures are non-fatal — training on iPhone continues either way.
     @MainActor
     static func openWatchForStrengthTraining() async {
@@ -24,7 +24,7 @@ enum CompanionWatchWorkoutLauncher {
         guard session.isWatchAppInstalled || session.isReachable else { return }
 
         let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .traditionalStrengthTraining
+        configuration.activityType = .other
         configuration.locationType = .indoor
 
         do {

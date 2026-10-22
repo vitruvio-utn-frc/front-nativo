@@ -136,6 +136,7 @@ public struct CreateExerciseSetRequest: Codable, Sendable {
 public struct ExerciseCompletionDTO: Codable, Sendable, Identifiable, Hashable {
     public let id: String
     public let exerciseExecutionId: String
+    public let trainingSessionCompletionId: String?
     public let startDate: Date?
     public let endDate: Date?
     public let caloriesBurnedInTotal: Double?
@@ -144,8 +145,9 @@ public struct ExerciseCompletionDTO: Codable, Sendable, Identifiable, Hashable {
         let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
         id = try container.decodeLosslessString(forKey: DynamicCodingKeys("id"))
         exerciseExecutionId = try container.decodeLosslessString(forKey: DynamicCodingKeys("exerciseExecutionId"))
-        startDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("startDate"))
-        endDate = try? container.decodeIfPresent(Date.self, forKey: DynamicCodingKeys("endDate"))
+        trainingSessionCompletionId = try? container.decodeLosslessString(forKey: DynamicCodingKeys("trainingSessionCompletionId"))
+        startDate = container.decodeFlexibleDateIfPresent(forKey: DynamicCodingKeys("startDate"))
+        endDate = container.decodeFlexibleDateIfPresent(forKey: DynamicCodingKeys("endDate"))
         caloriesBurnedInTotal = try? container.decodeIfPresent(Double.self, forKey: DynamicCodingKeys("caloriesBurnedInTotal"))
     }
 }
@@ -172,28 +174,73 @@ public struct CreateExerciseCompletionRequest: Codable, Sendable {
     }
 }
 
-/// Durable snapshot of the active training session (synced via Watch Connectivity).
-public struct ActiveTrainingSessionSnapshot: Codable, Equatable, Sendable {
-    public var sessionId: String
-    public var planId: String?
-    public var planName: String?
-    public var startedAt: Date
-    public var executionCount: Int
-    public var setCount: Int
+/// A recorded training run: what the client actually did for one prescribed `TrainingSession`.
+public struct TrainingSessionCompletionDTO: Codable, Sendable, Identifiable, Hashable {
+    public let id: String
+    public let trainingSessionId: String
+    public let memberId: String
+    public let trainingPlanId: String?
+    public let startDate: Date?
+    public let endDate: Date?
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
+        id = try container.decodeLosslessString(forKey: DynamicCodingKeys("id"))
+        trainingSessionId = try container.decodeLosslessString(forKey: DynamicCodingKeys("trainingSessionId"))
+        memberId = try container.decodeLosslessString(forKey: DynamicCodingKeys("memberId"))
+        trainingPlanId = try? container.decodeLosslessString(forKey: DynamicCodingKeys("trainingPlanId"))
+        startDate = container.decodeFlexibleDateIfPresent(forKey: DynamicCodingKeys("startDate"))
+        endDate = container.decodeFlexibleDateIfPresent(forKey: DynamicCodingKeys("endDate"))
+    }
+
+    /// Wall-clock length once the run has ended.
+    public var duration: TimeInterval? {
+        guard let startDate, let endDate else { return nil }
+        return max(0, endDate.timeIntervalSince(startDate))
+    }
+}
+
+public struct CreateTrainingSessionCompletionRequest: Codable, Sendable {
+    public var trainingSessionId: String
+    public var memberId: String
+    public var trainingPlanId: String?
+    public var startDate: Date?
+    public var endDate: Date?
 
     public init(
-        sessionId: String,
-        planId: String? = nil,
-        planName: String? = nil,
-        startedAt: Date = Date(),
-        executionCount: Int = 0,
-        setCount: Int = 0
+        trainingSessionId: String,
+        memberId: String,
+        trainingPlanId: String? = nil,
+        startDate: Date? = nil,
+        endDate: Date? = nil
     ) {
-        self.sessionId = sessionId
-        self.planId = planId
-        self.planName = planName
-        self.startedAt = startedAt
-        self.executionCount = executionCount
-        self.setCount = setCount
+        self.trainingSessionId = trainingSessionId
+        self.memberId = memberId
+        self.trainingPlanId = trainingPlanId
+        self.startDate = startDate
+        self.endDate = endDate
+    }
+}
+
+/// `PUT` replaces every field, so an update carries the same shape as a create.
+public typealias UpdateTrainingSessionCompletionRequest = CreateTrainingSessionCompletionRequest
+
+extension KeyedDecodingContainer where K == DynamicCodingKeys {
+    /// ISO 8601 date that tolerates the fractional seconds ASP.NET emits for sub-second values.
+    func decodeFlexibleDateIfPresent(forKey key: DynamicCodingKeys) -> Date? {
+        if let date = try? decode(Date.self, forKey: key) {
+            return date
+        }
+        guard let string = try? decode(String.self, forKey: key) else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: string) { return date }
+        // .NET writes 7 fractional digits; ISO8601DateFormatter only accepts up to 3.
+        if let dot = string.firstIndex(of: "."),
+           let zone = string[dot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" }) {
+            let digits = string[string.index(after: dot)..<zone].prefix(3)
+            return formatter.date(from: String(string[..<dot]) + "." + digits + String(string[zone...]))
+        }
+        return nil
     }
 }

@@ -16,9 +16,11 @@ final class CompanionPhoneGateway {
     private let log = Logger(subsystem: "com.santiago-alvarado.vitruvio", category: "CompanionPhone")
 
     private weak var auth: AuthSessionModel?
-    private let activeSession = ActiveTrainingSessionStore()
+    private let activeSession = ActiveTrainingSessionStore.shared
     private var cachedPlans: [CompanionPlanItem] = []
-    private var cachedExercises: [CompanionExerciseItem] = []
+    private var prescribedByPlan: [String: [PrescribedSession]] = [:]
+    private var cachedExecution: TrainingExecutionService?
+    private var executionMemberId: String?
 
     private init() {}
 
@@ -42,9 +44,6 @@ final class CompanionPhoneGateway {
         if quick.hasAuth {
             Task {
                 await self.refreshPlansIfNeeded()
-                if self.activeSession.activeSessionId != nil {
-                    try? await self.refreshActiveDetails()
-                }
                 let rich = self.buildLocalSnapshot(statusMessage: statusMessage)
                 WatchConnectivityBridge.shared.pushSnapshot(rich, event: .reloadRequest)
             }
@@ -56,13 +55,10 @@ final class CompanionPhoneGateway {
             // Instant local snapshot + applicationContext only (no nested sendMessage).
             let quick = buildLocalSnapshot()
             log.info("fullSync hasAuth=\(quick.hasAuth, privacy: .public)")
-            let payload = ManualEncoder.encode(quick)
+            let payload = WatchConnectivityBridge.encodeContext(quick)
             WatchConnectivityBridge.shared.pushSnapshot(quick, event: .reloadRequest)
             Task {
                 await self.refreshPlansIfNeeded()
-                if self.activeSession.activeSessionId != nil {
-                    try? await self.refreshActiveDetails()
-                }
                 let rich = self.buildLocalSnapshot()
                 WatchConnectivityBridge.shared.pushSnapshot(rich, event: .reloadRequest)
             }
@@ -76,58 +72,63 @@ final class CompanionPhoneGateway {
         do {
             switch action {
             case "startSession":
-                guard let planId = message["planId"] as? String else {
-                    return ["ok": false, "error": "missing_planId"]
+                guard let planId = message["planId"] as? String,
+                      let sessionId = message["trainingSessionId"] as? String
+                else {
+                    return ["ok": false, "error": "missing_startSession_params"]
                 }
-                try await startSession(planId: planId)
-            case "logSet":
-                guard let executionId = message["executionId"] as? String else {
-                    return ["ok": false, "error": "missing_executionId"]
+                try await startSession(planId: planId, trainingSessionId: sessionId)
+            case "markSet":
+                guard let executionId = message["executionId"] as? String,
+                      let index = Self.intValue(message["index"]),
+                      let done = (message["done"] as? Bool) ?? (message["done"] as? NSNumber)?.boolValue
+                else {
+                    return ["ok": false, "error": "missing_markSet_params"]
                 }
-                let reps = (message["reps"] as? Int)
-                    ?? (message["reps"] as? NSNumber)?.intValue
-                    ?? 0
-                guard reps > 0 else {
-                    return ["ok": false, "error": "missing_logSet_params"]
-                }
-                try await logSet(executionId: executionId, reps: reps)
+                let execution = try executionService()
+                execution.setSet(
+                    executionId: executionId,
+                    index: index,
+                    done: done,
+                    energyKcal: Self.doubleValue(message["energyKcal"]) ?? execution.currentEnergyReading()
+                )
             case "completeExercise":
                 guard let executionId = message["executionId"] as? String else {
                     return ["ok": false, "error": "missing_executionId"]
                 }
-                try await completeExercise(executionId: executionId)
+                let execution = try executionService()
+                try execution.completeExercise(
+                    executionId: executionId,
+                    energyKcal: Self.doubleValue(message["energyKcal"]) ?? execution.currentEnergyReading()
+                )
             case "endSession":
-                activeSession.clear()
-                cachedExercises = []
+                try executionService().end()
             case "refresh":
-                try await refreshActiveDetails()
                 await refreshPlansIfNeeded()
             default:
                 return ["ok": false, "error": "unknown_action"]
             }
             let snap = buildLocalSnapshot(statusMessage: "ok:\(action)")
             WatchConnectivityBridge.shared.pushSnapshot(snap, event: .trainingSessionChanged)
-            return ManualEncoder.encode(snap)
+            return WatchConnectivityBridge.encodeContext(snap)
         } catch {
             let snap = buildLocalSnapshot(statusMessage: error.localizedDescription)
             WatchConnectivityBridge.shared.pushSnapshot(snap, event: .reloadRequest)
-            return ManualEncoder.encode(snap)
+            return WatchConnectivityBridge.encodeContext(snap)
         }
     }
 
     /// Local-only snapshot — safe for WCSession reply handlers (no network).
     private func buildLocalSnapshot(statusMessage: String? = nil) -> CompanionSyncSnapshot {
-        activeSession.reloadFromPersistence()
         let hasAuth = resolveHasAuth()
         if !hasAuth {
             cachedPlans = []
-            cachedExercises = []
+            prescribedByPlan = [:]
         }
         return CompanionSyncSnapshot.phoneUIState(
             hasAuth: hasAuth,
             training: activeSession.snapshot,
             plans: cachedPlans,
-            exercises: cachedExercises,
             statusMessage: statusMessage
         )
     }
@@ -139,136 +140,70 @@ final class CompanionPhoneGateway {
         return false
     }
 
-    private func service() throws -> (TrainingService, String) {
-        guard let auth, let userId = auth.subject ?? (try? KeychainTokenStore().load())?.subject else {
+    /// Plans are matched on the `User` id of the active gym context, not the Keycloak `sub`.
+    private func memberId() throws -> String {
+        guard resolveHasAuth(), let userId = SharedGymContextReader.load()?.userId else {
             throw CompanionGatewayError.notAuthenticated
         }
-        guard resolveHasAuth() else {
-            throw CompanionGatewayError.notAuthenticated
-        }
-        return (TrainingService(api: auth.apiClient), userId)
+        return userId
+    }
+
+    private func executionService() throws -> TrainingExecutionService {
+        let userId = try memberId()
+        guard let auth else { throw CompanionGatewayError.notAuthenticated }
+        if let cachedExecution, executionMemberId == userId { return cachedExecution }
+        let created = TrainingExecutionService(training: TrainingService(api: auth.apiClient), memberId: userId)
+        cachedExecution = created
+        executionMemberId = userId
+        return created
     }
 
     private func refreshPlansIfNeeded() async {
         do {
-            let (service, userId) = try service()
-            let plans = try await service.listPlans(forMemberId: userId)
-            cachedPlans = plans.map { CompanionPlanItem(id: $0.id, name: $0.name) }
+            let training = try executionService().training
+            let plans = try await training.listPlans(forMemberId: try memberId())
+            let sessions = try await training.loadPrescribedSessions(planIds: plans.map(\.id))
+            prescribedByPlan = sessions
+            cachedPlans = plans.map { plan in
+                CompanionPlanItem(
+                    id: plan.id,
+                    name: plan.name,
+                    sessions: (sessions[plan.id] ?? []).map(CompanionSessionItem.init)
+                )
+            }
         } catch {
             log.error("refreshPlans failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func startSession(planId: String) async throws {
-        let (service, _) = try service()
+    private func startSession(planId: String, trainingSessionId: String) async throws {
+        if prescribedByPlan[planId] == nil { await refreshPlansIfNeeded() }
+        guard let session = prescribedByPlan[planId]?.first(where: { $0.id == trainingSessionId }) else {
+            throw CompanionGatewayError.sessionUnavailable
+        }
         let planName = cachedPlans.first(where: { $0.id == planId })?.name
-        let session = try await service.createSession(planId: planId)
-        activeSession.activate(sessionId: session.id, planId: planId, planName: planName)
-        try await refreshActiveDetails()
+        try executionService().start(planId: planId, planName: planName, session: session)
     }
 
-    private func refreshActiveDetails() async throws {
-        guard let sessionId = activeSession.activeSessionId else {
-            cachedExercises = []
-            return
-        }
-        let (service, _) = try service()
-        let exercises = try await service.listExercises()
-        let nameById = Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.name) })
-        let executions = try await service.listExecutions(forSessionId: sessionId)
-        var rows: [CompanionExerciseItem] = []
-        var totalSets = 0
-        for execution in executions {
-            let sets = try await service.listSets(forExecutionId: execution.id)
-            totalSets += sets.count
-            rows.append(
-                CompanionExerciseItem(
-                    id: execution.id,
-                    exerciseId: execution.exerciseId,
-                    name: nameById[execution.exerciseId] ?? execution.exerciseId,
-                    setReps: sets.map(\.reps)
-                )
-            )
-        }
-        cachedExercises = rows
-        activeSession.updateCounts(executionCount: executions.count, setCount: totalSets)
+    private static func intValue(_ any: Any?) -> Int? {
+        if let value = any as? Int { return value }
+        return (any as? NSNumber)?.intValue
     }
 
-    private func logSet(executionId: String, reps: Int) async throws {
-        let (service, _) = try service()
-        _ = try await service.createSet(
-            CreateExerciseSetRequest(exerciseExecutionId: executionId, reps: reps)
-        )
-        try await refreshActiveDetails()
+    private static func doubleValue(_ any: Any?) -> Double? {
+        if let value = any as? Double { return value }
+        return (any as? NSNumber)?.doubleValue
     }
-
-    private func completeExercise(executionId: String) async throws {
-        let (service, _) = try service()
-        _ = try await service.createCompletion(
-            CreateExerciseCompletionRequest(
-                exerciseExecutionId: executionId,
-                startDate: Date().addingTimeInterval(-300),
-                endDate: Date(),
-                caloriesBurnedInTotal: 0
-            )
-        )
-        try await refreshActiveDetails()
-    }
-
 }
 
 private enum CompanionGatewayError: LocalizedError {
     case notAuthenticated
+    case sessionUnavailable
 
     var errorDescription: String? {
         switch self {
         case .notAuthenticated: "Iniciá sesión en el iPhone"
+        case .sessionUnavailable: "No se encontró la sesión del plan: actualizá desde el iPhone"
         }
-    }
-}
-
-private enum ManualEncoder {
-    private static let listEncoder = JSONEncoder()
-
-    static func encode(_ snapshot: CompanionSyncSnapshot) -> [String: Any] {
-        var dict: [String: Any] = [
-            "v": 3,
-            "event": CompanionSyncEvent.reloadRequest.rawValue,
-            "source": snapshot.source.rawValue,
-            "updatedAt": snapshot.updatedAt.timeIntervalSince1970,
-            "hasAuth": snapshot.hasAuth,
-            "trainingExecutionCount": snapshot.trainingExecutionCount,
-            "trainingSetCount": snapshot.trainingSetCount,
-        ]
-        if let userId = snapshot.userId { dict["userId"] = userId }
-        if let gymId = snapshot.gymId { dict["gymId"] = gymId }
-        if let roleId = snapshot.roleId { dict["roleId"] = roleId }
-        if let shell = snapshot.shell { dict["shell"] = shell }
-        if let trainingSessionId = snapshot.trainingSessionId {
-            dict["trainingSessionId"] = trainingSessionId
-        }
-        if let trainingPlanId = snapshot.trainingPlanId {
-            dict["trainingPlanId"] = trainingPlanId
-        }
-        if let trainingPlanName = snapshot.trainingPlanName {
-            dict["trainingPlanName"] = trainingPlanName
-        }
-        if let trainingStartedAt = snapshot.trainingStartedAt {
-            dict["trainingStartedAt"] = trainingStartedAt.timeIntervalSince1970
-        }
-        if let statusMessage = snapshot.statusMessage {
-            dict["statusMessage"] = statusMessage
-        }
-        if let data = try? listEncoder.encode(snapshot.plans),
-           let json = String(data: data, encoding: .utf8)
-        {
-            dict["plansJSON"] = json
-        }
-        if let data = try? listEncoder.encode(snapshot.exercises),
-           let json = String(data: data, encoding: .utf8)
-        {
-            dict["exercisesJSON"] = json
-        }
-        return dict
     }
 }

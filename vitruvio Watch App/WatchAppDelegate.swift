@@ -16,6 +16,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
 
     func applicationDidFinishLaunching() {
         WatchConnectivityBridge.shared.activate()
+        // A workout left alive by a terminated run would block closing the next one.
+        Task { @MainActor in await WatchHealthKitWorkoutManager.shared.recoverActiveWorkout() }
 
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
@@ -37,6 +39,13 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
             await WatchHealthKitWorkoutManager.shared.startWorkoutIfAuthorized(
                 configuration: workoutConfiguration
             )
+        }
+    }
+
+    /// The system relaunched the app because a workout was still running when it was terminated.
+    func handleActiveWorkoutRecovery() {
+        Task { @MainActor in
+            await WatchHealthKitWorkoutManager.shared.recoverActiveWorkout()
         }
     }
 

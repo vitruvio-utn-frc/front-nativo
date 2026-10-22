@@ -5,29 +5,49 @@ import Observation
 import WatchConnectivity
 #endif
 
+/// Prescribed session row for the Watch session picker.
+public struct CompanionSessionItem: Codable, Equatable, Sendable, Identifiable, Hashable {
+    public var id: String
+    public var label: String
+    public var summary: String
+    public var exerciseCount: Int
+
+    public init(id: String, label: String, summary: String, exerciseCount: Int) {
+        self.id = id
+        self.label = label
+        self.summary = summary
+        self.exerciseCount = exerciseCount
+    }
+
+    public init(_ session: PrescribedSession) {
+        self.init(
+            id: session.id,
+            label: session.label,
+            summary: session.summary,
+            exerciseCount: session.exercises.count
+        )
+    }
+}
+
 /// Lightweight plan row for Watch UI (no API on Watch).
 public struct CompanionPlanItem: Codable, Equatable, Sendable, Identifiable, Hashable {
     public var id: String
     public var name: String
+    public var sessions: [CompanionSessionItem]
 
-    public init(id: String, name: String) {
+    public init(id: String, name: String, sessions: [CompanionSessionItem] = []) {
         self.id = id
         self.name = name
+        self.sessions = sessions
     }
-}
 
-/// Exercise/execution row for Watch active-session UI.
-public struct CompanionExerciseItem: Codable, Equatable, Sendable, Identifiable, Hashable {
-    public var id: String
-    public var exerciseId: String
-    public var name: String
-    public var setReps: [Int]
+    private enum CodingKeys: String, CodingKey { case id, name, sessions }
 
-    public init(id: String, exerciseId: String, name: String, setReps: [Int]) {
-        self.id = id
-        self.exerciseId = exerciseId
-        self.name = name
-        self.setReps = setReps
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        sessions = try container.decodeIfPresent([CompanionSessionItem].self, forKey: .sessions) ?? []
     }
 }
 
@@ -46,14 +66,9 @@ public struct CompanionSyncSnapshot: Equatable, Sendable {
     public var gymId: String?
     public var roleId: String?
     public var shell: String?
-    public var trainingSessionId: String?
-    public var trainingPlanId: String?
-    public var trainingPlanName: String?
-    public var trainingStartedAt: Date?
-    public var trainingExecutionCount: Int
-    public var trainingSetCount: Int
+    /// The run in progress, with per-exercise progress.
+    public var training: ActiveTrainingSessionSnapshot?
     public var plans: [CompanionPlanItem]
-    public var exercises: [CompanionExerciseItem]
     public var statusMessage: String?
 
     public init(
@@ -64,14 +79,8 @@ public struct CompanionSyncSnapshot: Equatable, Sendable {
         gymId: String? = nil,
         roleId: String? = nil,
         shell: String? = nil,
-        trainingSessionId: String? = nil,
-        trainingPlanId: String? = nil,
-        trainingPlanName: String? = nil,
-        trainingStartedAt: Date? = nil,
-        trainingExecutionCount: Int = 0,
-        trainingSetCount: Int = 0,
+        training: ActiveTrainingSessionSnapshot? = nil,
         plans: [CompanionPlanItem] = [],
-        exercises: [CompanionExerciseItem] = [],
         statusMessage: String? = nil
     ) {
         self.updatedAt = updatedAt
@@ -81,34 +90,20 @@ public struct CompanionSyncSnapshot: Equatable, Sendable {
         self.gymId = gymId
         self.roleId = roleId
         self.shell = shell
-        self.trainingSessionId = trainingSessionId
-        self.trainingPlanId = trainingPlanId
-        self.trainingPlanName = trainingPlanName
-        self.trainingStartedAt = trainingStartedAt
-        self.trainingExecutionCount = trainingExecutionCount
-        self.trainingSetCount = trainingSetCount
+        self.training = training
         self.plans = plans
-        self.exercises = exercises
         self.statusMessage = statusMessage
     }
 
-    public var trainingSnapshot: ActiveTrainingSessionSnapshot? {
-        guard let trainingSessionId, !trainingSessionId.isEmpty else { return nil }
-        return ActiveTrainingSessionSnapshot(
-            sessionId: trainingSessionId,
-            planId: trainingPlanId,
-            planName: trainingPlanName,
-            startedAt: trainingStartedAt ?? updatedAt,
-            executionCount: trainingExecutionCount,
-            setCount: trainingSetCount
-        )
-    }
+    public var trainingSnapshot: ActiveTrainingSessionSnapshot? { training }
+    public var trainingSessionId: String? { training?.trainingSessionId }
+    public var trainingPlanId: String? { training?.planId }
+    public var trainingPlanName: String? { training?.planName }
 
     public static func phoneUIState(
         hasAuth: Bool,
         training: ActiveTrainingSessionSnapshot?,
         plans: [CompanionPlanItem] = [],
-        exercises: [CompanionExerciseItem] = [],
         statusMessage: String? = nil
     ) -> CompanionSyncSnapshot {
         let gym = SharedGymContextReader.load()
@@ -119,14 +114,8 @@ public struct CompanionSyncSnapshot: Equatable, Sendable {
             gymId: gym?.gymId,
             roleId: gym.map { String($0.roleId) },
             shell: gym?.role?.shell.rawValue,
-            trainingSessionId: training?.sessionId,
-            trainingPlanId: training?.planId,
-            trainingPlanName: training?.planName,
-            trainingStartedAt: training?.startedAt,
-            trainingExecutionCount: training?.executionCount ?? 0,
-            trainingSetCount: training?.setCount ?? 0,
+            training: training,
             plans: plans,
-            exercises: exercises,
             statusMessage: statusMessage
         )
     }
@@ -183,11 +172,13 @@ public struct CompanionWorkoutMetrics: Equatable, Sendable {
 /// Applies companion UI state locally (training mirror only — never auth tokens).
 @MainActor
 public enum CompanionStateApplier {
-    private static let trainingStore = ActiveTrainingSessionStore()
+    private static var trainingStore: ActiveTrainingSessionStore { .shared }
 
     public static func apply(_ snapshot: CompanionSyncSnapshot) {
-        applyTraining(snapshot)
+        // The iPhone is the source of truth for the active run; only the Watch mirrors it. Applying a
+        // snapshot built a moment ago on the phone could undo a set marked in between.
 #if os(watchOS)
+        applyTraining(snapshot)
         applyGym(snapshot)
 #endif
     }
@@ -216,6 +207,7 @@ public enum CompanionStateApplier {
     }
 #endif
 
+#if os(watchOS)
     private static func applyTraining(_ snapshot: CompanionSyncSnapshot) {
         if let remote = snapshot.trainingSnapshot {
             trainingStore.replace(with: remote)
@@ -223,6 +215,7 @@ public enum CompanionStateApplier {
             trainingStore.clear()
         }
     }
+#endif
 }
 
 /// iPhone ↔ Watch companion bridge. Watch never receives or stores auth tokens.
@@ -350,7 +343,6 @@ public final class WatchConnectivityBridge: NSObject {
         hasAuth: Bool,
         training: ActiveTrainingSessionSnapshot? = nil,
         plans: [CompanionPlanItem] = [],
-        exercises: [CompanionExerciseItem] = [],
         statusMessage: String? = nil,
         event: CompanionSyncEvent = .reloadRequest
     ) {
@@ -358,7 +350,6 @@ public final class WatchConnectivityBridge: NSObject {
             hasAuth: hasAuth,
             training: training ?? CompanionStateApplier.localTrainingSnapshot(),
             plans: plans,
-            exercises: exercises,
             statusMessage: statusMessage
         )
         pushSnapshot(snapshot, event: event)
@@ -616,47 +607,38 @@ public final class WatchConnectivityBridge: NSObject {
 #endif
     }
 
-    private static func encodeContext(
+    /// Wire format version; a receiver ignores snapshots of any other version.
+    public static let wireVersion = 4
+
+    /// Plist dictionary for a snapshot, shared by context pushes and Watch action replies.
+    public static func encodeContext(
         _ snapshot: CompanionSyncSnapshot,
-        event: CompanionSyncEvent
+        event: CompanionSyncEvent = .reloadRequest
     ) -> [String: Any] {
         var dict: [String: Any] = [
-            "v": 3,
+            "v": wireVersion,
             "event": event.rawValue,
             "source": snapshot.source.rawValue,
             "updatedAt": snapshot.updatedAt.timeIntervalSince1970,
             "hasAuth": snapshot.hasAuth,
-            "trainingExecutionCount": snapshot.trainingExecutionCount,
-            "trainingSetCount": snapshot.trainingSetCount,
         ]
         if let userId = snapshot.userId { dict["userId"] = userId }
         if let gymId = snapshot.gymId { dict["gymId"] = gymId }
         if let roleId = snapshot.roleId { dict["roleId"] = roleId }
         if let shell = snapshot.shell { dict["shell"] = shell }
-        if let trainingSessionId = snapshot.trainingSessionId {
-            dict["trainingSessionId"] = trainingSessionId
-        }
-        if let trainingPlanId = snapshot.trainingPlanId {
-            dict["trainingPlanId"] = trainingPlanId
-        }
-        if let trainingPlanName = snapshot.trainingPlanName {
-            dict["trainingPlanName"] = trainingPlanName
-        }
-        if let trainingStartedAt = snapshot.trainingStartedAt {
-            dict["trainingStartedAt"] = trainingStartedAt.timeIntervalSince1970
-        }
         if let statusMessage = snapshot.statusMessage {
             dict["statusMessage"] = statusMessage
+        }
+        if let training = snapshot.training,
+           let data = try? listEncoder.encode(training),
+           let json = String(data: data, encoding: .utf8)
+        {
+            dict["trainingJSON"] = json
         }
         if let data = try? listEncoder.encode(snapshot.plans),
            let json = String(data: data, encoding: .utf8)
         {
             dict["plansJSON"] = json
-        }
-        if let data = try? listEncoder.encode(snapshot.exercises),
-           let json = String(data: data, encoding: .utf8)
-        {
-            dict["exercisesJSON"] = json
         }
         return dict
     }
@@ -671,22 +653,13 @@ public final class WatchConnectivityBridge: NSObject {
             updatedAt = Date()
         }
 
-        let startedAt: Date?
-        if let interval = dict["trainingStartedAt"] as? TimeInterval {
-            startedAt = Date(timeIntervalSince1970: interval)
-        } else if let number = dict["trainingStartedAt"] as? NSNumber {
-            startedAt = Date(timeIntervalSince1970: number.doubleValue)
-        } else {
-            startedAt = nil
-        }
-
         var plans: [CompanionPlanItem] = []
         if let json = dict["plansJSON"] as? String, let data = json.data(using: .utf8) {
             plans = (try? listDecoder.decode([CompanionPlanItem].self, from: data)) ?? []
         }
-        var exercises: [CompanionExerciseItem] = []
-        if let json = dict["exercisesJSON"] as? String, let data = json.data(using: .utf8) {
-            exercises = (try? listDecoder.decode([CompanionExerciseItem].self, from: data)) ?? []
+        var training: ActiveTrainingSessionSnapshot?
+        if let json = dict["trainingJSON"] as? String, let data = json.data(using: .utf8) {
+            training = try? listDecoder.decode(ActiveTrainingSessionSnapshot.self, from: data)
         }
 
         let source = CompanionSyncSnapshot.Source(rawValue: dict["source"] as? String ?? "") ?? .ios
@@ -703,14 +676,8 @@ public final class WatchConnectivityBridge: NSObject {
             roleId: (dict["roleId"] as? String)
                 ?? (dict["roleId"] as? NSNumber)?.stringValue,
             shell: dict["shell"] as? String,
-            trainingSessionId: dict["trainingSessionId"] as? String,
-            trainingPlanId: dict["trainingPlanId"] as? String,
-            trainingPlanName: dict["trainingPlanName"] as? String,
-            trainingStartedAt: startedAt,
-            trainingExecutionCount: intValue(dict["trainingExecutionCount"]),
-            trainingSetCount: intValue(dict["trainingSetCount"]),
+            training: training,
             plans: plans,
-            exercises: exercises,
             statusMessage: dict["statusMessage"] as? String
         )
     }
@@ -742,6 +709,10 @@ public final class WatchConnectivityBridge: NSObject {
             return
         }
 
+        if let version = dict["v"], Self.intValue(version) != Self.wireVersion {
+            lastError = "Las apps del iPhone y del Watch tienen versiones distintas: actualizá ambas."
+            return
+        }
         let snapshot = Self.decodeSnapshot(from: dict)
         // Always accept a transition to authenticated, even if timestamps race.
         let upgradingToAuth = snapshot.hasAuth && (lastReceivedSnapshot?.hasAuth != true)

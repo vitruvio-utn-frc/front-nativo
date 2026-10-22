@@ -1,6 +1,7 @@
 import Foundation
 
 /// Staff authoring operations: exercise catalog and training plan structure.
+/// Prescription writes (sessions, executions, sets) live here: the client role only reads them.
 public extension TrainingService {
     // MARK: - Exercises
 
@@ -35,6 +36,21 @@ public extension TrainingService {
     }
 
     // MARK: - Structure
+
+    func createSession(planId: String) async throws -> TrainingSessionDTO {
+        try await api.post(
+            "api/training-sessions",
+            body: CreateTrainingSessionRequest(trainingPlanId: planId)
+        )
+    }
+
+    func createExecution(_ request: CreateExerciseExecutionRequest) async throws -> ExerciseExecutionDTO {
+        try await api.post("api/exercise-executions", body: request)
+    }
+
+    func createSet(_ request: CreateExerciseSetRequest) async throws -> ExerciseSetDTO {
+        try await api.post("api/exercise-sets", body: request)
+    }
 
     func deleteSession(id: String) async throws {
         try await api.delete("api/training-sessions/\(id)")

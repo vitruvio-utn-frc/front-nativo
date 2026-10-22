@@ -24,7 +24,8 @@ Usar con `openspec-apply-change` (o equivalente) sobre cada change, en orden. Ma
 | 6 | `client-training` | 4 | Planes + sesión iPhone + offline; habilita Watch | [x] 2026-10-13 |
 | 7 | `watch-training-companion` | 2, 6 | UI entrenamiento + HealthKit; solo cliente | [x] 2026-10-13 |
 | 7b | `iphone-session-detail-watch-vitals` | 6, 7 | Historial de sesión + vitals Watch en iPhone | [x] 2026-10-14 |
-| 7c | `session-date-calories-hk-workout` | 7b + **backend** | Orden por fecha + kcal + HK workout id; **bloquear cliente hasta API** | [ ] blocked |
+| 7c | `session-date-calories-hk-workout` | 7b + **backend** | **Reemplazado por 7d**: fecha y kcal salen de `TrainingSessionCompletion` / `ExerciseCompletion`, sin tocar el backend | [-] reemplazado y borrado |
+| 7d | `training-execution-model` | 6, 7, 7b | El cliente registra ejecuciones (`TrainingSessionCompletion`/`ExerciseCompletion`) en vez de escribir en la prescripción; kcal medidas o estimadas; vínculo HKWorkout. Pedidos al backend en su `proposal.md` | [x] 2026-10-21 (kcal medidas por el Watch: falta probar en dispositivo físico) |
 | 8 | `client-appointments` | 4 | Puede ir en paralelo con 6/9 tras gym-context | [x] 2026-10-16 |
 | 9 | `client-membership-profile` | 4 | Membresías + perfil; sin tarjetas/store | [x] 2026-10-21 |
 | 9b | `client-membership-enrollment` (sin change aún) | 9 | El cliente contrata membresías desde la app (hecho en código, sin pago). **Pendiente: pasarela de pago** y registrar `Payment` en la contratación | [ ] pasarela pendiente |

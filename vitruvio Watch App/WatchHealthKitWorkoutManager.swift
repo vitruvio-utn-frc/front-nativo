@@ -6,9 +6,10 @@
 import Foundation
 import HealthKit
 import Observation
+import OSLog
 import VitruvioCore
 
-/// Runs a Watch strength `HKWorkoutSession` and surfaces live heart rate.
+/// Runs a Watch `HKWorkoutSession` for a training run and surfaces live heart rate.
 @MainActor
 @Observable
 final class WatchHealthKitWorkoutManager: NSObject {
@@ -34,6 +35,12 @@ final class WatchHealthKitWorkoutManager: NSObject {
     private(set) var totalEnergyBurnedKilocalories: Double = 0
     private(set) var hrUnavailableReason: String?
     private(set) var workoutStartedAt: Date?
+    /// UUID of the last saved `HKWorkout` (diagnostics only: the API has no field for it).
+    private(set) var lastSavedWorkoutId: UUID?
+    private var isEnding = false
+    private var isStarting = false
+
+    private let log = Logger(subsystem: "com.santiago-alvarado.vitruvio.watch", category: "Workout")
 
     var canShowHeartRate: Bool {
         authorizationState == .authorized && hrUnavailableReason == nil
@@ -79,13 +86,21 @@ final class WatchHealthKitWorkoutManager: NSObject {
 
     /// Starts a traditional strength workout. No-ops gracefully when auth is denied.
     func startWorkoutIfAuthorized(configuration: HKWorkoutConfiguration? = nil) async {
-        await requestAuthorization()
+        // Several entry points can ask at once (launch, continue, iPhone request); one prompt is enough.
+        guard !isStarting, session == nil else { return }
+        isStarting = true
+        defer { isStarting = false }
+        if authorizationState != .authorized {
+            await requestAuthorization()
+        }
         guard authorizationState == .authorized else { return }
         guard session == nil else { return }
+        if await recoverActiveWorkout() { return }
 
         let configuration = configuration ?? {
             let config = HKWorkoutConfiguration()
-            config.activityType = .traditionalStrengthTraining
+            // `.other` so Fitness lists the workout under a neutral name; Apple's optimized strength calories don't apply.
+            config.activityType = .other
             config.locationType = .indoor
             return config
         }()
@@ -118,10 +133,18 @@ final class WatchHealthKitWorkoutManager: NSObject {
         }
     }
 
-    func endWorkout() async -> (duration: TimeInterval, calories: Double) {
+    /// Ends and saves the workout. When `completionServerId` is known it is written as the workout's external
+    /// identifier so the HealthKit workout can be matched to the `TrainingSessionCompletion`; when it is not,
+    /// the workout is saved without it (a temporary id is never written).
+    @discardableResult
+    func endWorkout(completionServerId: String? = nil) async -> (duration: TimeInterval, calories: Double) {
         let started = workoutStartedAt ?? Date()
         let duration = Date().timeIntervalSince(started)
         let calories = totalEnergyBurnedKilocalories
+
+        guard !isEnding else { return (duration, calories) }
+        isEnding = true
+        defer { isEnding = false }
 
         stopVitalsPublisher(publishFinal: true)
 
@@ -131,15 +154,79 @@ final class WatchHealthKitWorkoutManager: NSObject {
         }
 
         session.end()
-        do {
-            try await builder.endCollection(at: Date())
-            _ = try await builder.finishWorkout()
-        } catch {
-            // Training logging continues even if HK finish fails.
+        let log = log
+        // HealthKit can leave these calls waiting forever when the system never acknowledges the end
+        // (e.g. an orphaned workout from a killed app). Bound it so the UI is never stuck behind it.
+        let finished = await Self.completes(within: 10) { [weak self] in
+            do {
+                try await builder.endCollection(at: Date())
+                if let completionServerId, !completionServerId.isEmpty {
+                    try await builder.addMetadata([HKMetadataKeyExternalUUID: completionServerId])
+                }
+                let workout = try await builder.finishWorkout()
+                await MainActor.run { self?.lastSavedWorkoutId = workout?.uuid }
+                log.info("saved workout linked=\(completionServerId != nil, privacy: .public)")
+            } catch {
+                // Training logging continues even if HK finish fails.
+                log.error("finish workout failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        if !finished {
+            log.error("HealthKit did not confirm the end of the workout; releasing it")
         }
 
         resetLocalState()
         return (duration, calories)
+    }
+
+    /// Re-attaches to, or discards, a workout the system kept alive after the app was terminated mid-run.
+    /// While such a workout exists a new one cannot be closed. It is kept only when it belongs to the training
+    /// run still active (it started after that run did); otherwise it is an orphan and is discarded.
+    /// Returns `true` when it was adopted.
+    @discardableResult
+    func recoverActiveWorkout() async -> Bool {
+        guard session == nil else { return false }
+        guard let recovered = try? await healthStore.recoverActiveWorkoutSession() else { return false }
+        let recoveredBuilder = recovered.associatedWorkoutBuilder()
+        let belongsToActiveRun: Bool = await MainActor.run {
+            guard let run = ActiveTrainingSessionStore.shared.snapshot,
+                  let startedAt = recovered.startDate
+            else { return false }
+            return startedAt >= run.startedAt.addingTimeInterval(-120)
+        }
+        if belongsToActiveRun {
+            recovered.delegate = self
+            recoveredBuilder.delegate = self
+            session = recovered
+            builder = recoveredBuilder
+            workoutStartedAt = recovered.startDate ?? Date()
+            isWorkoutActive = true
+            startVitalsPublisher()
+            log.info("adopted a recovered workout")
+            return true
+        }
+        recovered.end()
+        _ = await Self.completes(within: 5) {
+            try? await recoveredBuilder.endCollection(at: Date())
+            recoveredBuilder.discardWorkout()
+        }
+        log.info("discarded an orphaned workout")
+        return false
+    }
+
+    /// Runs `work` and reports whether it finished within `seconds`. The work is abandoned, not cancelled.
+    private static func completes(within seconds: TimeInterval, _ work: @escaping @Sendable () async -> Void) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let gate = OnceGate()
+            Task {
+                await work()
+                if gate.claim() { continuation.resume(returning: true) }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                if gate.claim() { continuation.resume(returning: false) }
+            }
+        }
     }
 
     private func startVitalsPublisher() {
@@ -246,4 +333,18 @@ extension WatchHealthKitWorkoutManager: HKLiveWorkoutBuilderDelegate {
     }
 
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+}
+
+/// Lets exactly one of two racing tasks win.
+private final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if claimed { return false }
+        claimed = true
+        return true
+    }
 }

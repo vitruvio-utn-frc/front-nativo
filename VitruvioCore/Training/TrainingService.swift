@@ -26,15 +26,27 @@ public struct TrainingService: Sendable {
         }
     }
 
-    public func createSession(planId: String) async throws -> TrainingSessionDTO {
-        try await api.post(
-            "api/training-sessions",
-            body: CreateTrainingSessionRequest(trainingPlanId: planId)
-        )
-    }
-
     public func getSession(id: String) async throws -> TrainingSessionDTO? {
         try await api.getOptional("api/training-sessions/\(id)")
+    }
+
+    /// The client's own recorded runs, newest first. Optionally narrowed to one plan.
+    public func listCompletions(memberId: String, planId: String? = nil) async throws -> [TrainingSessionCompletionDTO] {
+        let all: [TrainingSessionCompletionDTO] = try await api.get("api/training-session-completions")
+        return all
+            .filter { $0.memberId.caseInsensitiveCompare(memberId) == .orderedSame }
+            .filter { completion in
+                guard let planId else { return true }
+                return (completion.trainingPlanId ?? "").caseInsensitiveCompare(planId) == .orderedSame
+            }
+            .sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+    }
+
+    public func listExerciseCompletions(sessionCompletionId: String) async throws -> [ExerciseCompletionDTO] {
+        let all: [ExerciseCompletionDTO] = try await api.get("api/exercise-completions")
+        return all
+            .filter { ($0.trainingSessionCompletionId ?? "").caseInsensitiveCompare(sessionCompletionId) == .orderedSame }
+            .sorted { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }
     }
 
     public func listExercises() async throws -> [ExerciseDTO] {
@@ -48,8 +60,10 @@ public struct TrainingService: Sendable {
         }
     }
 
-    public func createExecution(_ request: CreateExerciseExecutionRequest) async throws -> ExerciseExecutionDTO {
-        try await api.post("api/exercise-executions", body: request)
+    public func listExecutions(withIds ids: Set<String>) async throws -> [ExerciseExecutionDTO] {
+        let wanted = Set(ids.map { $0.lowercased() })
+        let all: [ExerciseExecutionDTO] = try await api.get("api/exercise-executions")
+        return all.filter { wanted.contains($0.id.lowercased()) }
     }
 
     public func listSets(forExecutionId executionId: String) async throws -> [ExerciseSetDTO] {
@@ -57,10 +71,6 @@ public struct TrainingService: Sendable {
         return all.filter {
             $0.exerciseExecutionId.caseInsensitiveCompare(executionId) == .orderedSame
         }
-    }
-
-    public func createSet(_ request: CreateExerciseSetRequest) async throws -> ExerciseSetDTO {
-        try await api.post("api/exercise-sets", body: request)
     }
 
     public func createCompletion(_ request: CreateExerciseCompletionRequest) async throws -> ExerciseCompletionDTO {

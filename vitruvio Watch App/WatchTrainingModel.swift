@@ -12,7 +12,6 @@ import VitruvioCore
 @Observable
 final class WatchTrainingModel {
     private(set) var plans: [CompanionPlanItem] = []
-    private(set) var exercises: [CompanionExerciseItem] = []
     private(set) var activeSession: ActiveTrainingSessionSnapshot?
     private(set) var isLoading = false
     private(set) var isWorking = false
@@ -56,26 +55,26 @@ final class WatchTrainingModel {
 
     func continueActiveSession() async {
         guard let session = activeSession else { return }
-        healthKit.companionTrainingSessionId = session.sessionId
-        await healthKit.startWorkoutIfAuthorized()
+        healthKit.companionTrainingSessionId = session.trainingSessionId
+        startWorkoutInBackground()
         await refresh()
     }
 
-    func startSession(plan: CompanionPlanItem) async -> Bool {
+    func startSession(plan: CompanionPlanItem, session: CompanionSessionItem) async -> Bool {
         isWorking = true
         lastError = nil
         defer { isWorking = false }
         guard let snapshot = await WatchConnectivityBridge.shared.sendWatchAction(
             "startSession",
-            params: ["planId": plan.id]
+            params: ["planId": plan.id, "trainingSessionId": session.id]
         ) else {
             lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
             return false
         }
         apply(snapshot)
-        if let session = activeSession {
-            healthKit.companionTrainingSessionId = session.sessionId
-            await healthKit.startWorkoutIfAuthorized()
+        if let active = activeSession {
+            healthKit.companionTrainingSessionId = active.trainingSessionId
+            startWorkoutInBackground()
             status = "Sesión iniciada"
             return true
         }
@@ -83,16 +82,14 @@ final class WatchTrainingModel {
         return false
     }
 
-    func logSet(executionId: String, reps: Int) async {
+    func markSet(executionId: String, index: Int, done: Bool) async {
         isWorking = true
         lastError = nil
         defer { isWorking = false }
-        if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction(
-            "logSet",
-            params: ["executionId": executionId, "reps": reps]
-        ) {
+        var params: [String: Any] = ["executionId": executionId, "index": index, "done": done]
+        if let kcal = currentEnergy { params["energyKcal"] = kcal }
+        if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction("markSet", params: params) {
             apply(snapshot)
-            status = "Serie registrada"
         } else {
             lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
         }
@@ -102,10 +99,9 @@ final class WatchTrainingModel {
         isWorking = true
         lastError = nil
         defer { isWorking = false }
-        if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction(
-            "completeExercise",
-            params: ["executionId": executionId]
-        ) {
+        var params: [String: Any] = ["executionId": executionId]
+        if let kcal = currentEnergy { params["energyKcal"] = kcal }
+        if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction("completeExercise", params: params) {
             apply(snapshot)
             status = "Ejercicio completado"
         } else {
@@ -113,23 +109,48 @@ final class WatchTrainingModel {
         }
     }
 
-    func endSession() async {
+    /// Ends the run. Returns `false` when the iPhone could not be reached (the run is then still active).
+    @discardableResult
+    func endSession() async -> Bool {
         isWorking = true
         defer { isWorking = false }
-        _ = await healthKit.endWorkout()
+        // Pick up a server id that may have resolved since the last snapshot, so the workout can be linked.
+        _ = await WatchConnectivityBridge.shared.sendWatchAction("refresh").map(apply)
+        // HealthKit finishes in the background: the screen never waits on it.
+        let completionId = activeSession?.completionServerId
+        Task { await healthKit.endWorkout(completionServerId: completionId) }
         if let snapshot = await WatchConnectivityBridge.shared.sendWatchAction("endSession") {
             apply(snapshot)
             status = "Sesión finalizada"
+            return activeSession == nil
         } else {
             lastError = WatchConnectivityBridge.shared.lastError ?? "iPhone no disponible"
+            return false
         }
+    }
+
+    /// Training never waits on HealthKit: the permission prompt or the workout itself may take a while
+    /// (or never answer), and logging must work without it.
+    private func startWorkoutInBackground() {
+        Task { await healthKit.startWorkoutIfAuthorized() }
+    }
+
+    /// Active energy of the running workout, only while one is actually collecting.
+    private var currentEnergy: Double? {
+        guard healthKit.isWorkoutActive, healthKit.totalEnergyBurnedKilocalories > 0 else { return nil }
+        return healthKit.totalEnergyBurnedKilocalories
     }
 
     private func apply(_ snapshot: CompanionSyncSnapshot?) {
         guard let snapshot else { return }
+        let previous = activeSession
         plans = snapshot.plans
-        exercises = snapshot.exercises
         activeSession = snapshot.trainingSnapshot
+        // The run was ended on the iPhone while this workout is still collecting: close it too.
+        if previous != nil, activeSession == nil, healthKit.isWorkoutActive {
+            let completionId = previous?.completionServerId
+            Task { await healthKit.endWorkout(completionServerId: completionId) }
+        }
         if let statusMessage = snapshot.statusMessage, !statusMessage.hasPrefix("ok:") {
             // Surface non-ok status from phone.
             if statusMessage.contains("sesión") || statusMessage.contains("error") {

@@ -78,6 +78,7 @@
 		4A6C242C307EC6B900AD01B4 /* vitruvio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = vitruvio.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "vitruvio Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = VitruvioCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A936FA3308996D500B1E1C6 /* VitruvioCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VitruvioCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -129,6 +130,11 @@
 			path = VitruvioCore;
 			sourceTree = "<group>";
 		};
+		4A936FA4308996D500B1E1C6 /* VitruvioCoreTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = VitruvioCoreTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +161,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4A936FA0308996D500B1E1C6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -164,6 +177,7 @@
 				4A6C242E307EC6B900AD01B4 /* vitruvio */,
 				4A6C2445307EC70800AD01B4 /* vitruvio Watch App */,
 				4A6C245C307EC94C00AD01B4 /* VitruvioCore */,
+				4A936FA4308996D500B1E1C6 /* VitruvioCoreTests */,
 				4A6C2463307ECAAD00AD01B4 /* Frameworks */,
 				4A6C242D307EC6B900AD01B4 /* Products */,
 			);
@@ -175,6 +189,7 @@
 				4A6C242C307EC6B900AD01B4 /* vitruvio.app */,
 				4A6C2444307EC70800AD01B4 /* vitruvio Watch App.app */,
 				4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */,
+				4A936FA3308996D500B1E1C6 /* VitruvioCoreTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -272,6 +287,28 @@
 			productReference = 4A6C245B307EC94B00AD01B4 /* VitruvioCore.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		4A936FA2308996D500B1E1C6 /* VitruvioCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A936FA7308996D500B1E1C6 /* Build configuration list for PBXNativeTarget "VitruvioCoreTests" */;
+			buildPhases = (
+				4A936F9F308996D500B1E1C6 /* Sources */,
+				4A936FA0308996D500B1E1C6 /* Frameworks */,
+				4A936FA1308996D500B1E1C6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4A936FA4308996D500B1E1C6 /* VitruvioCoreTests */,
+			);
+			name = VitruvioCoreTests;
+			packageProductDependencies = (
+			);
+			productName = VitruvioCoreTests;
+			productReference = 4A936FA3308996D500B1E1C6 /* VitruvioCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -279,7 +316,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 2710;
 				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					4A6C242B307EC6B900AD01B4 = {
@@ -290,6 +327,9 @@
 					};
 					4A6C245A307EC94B00AD01B4 = {
 						CreatedOnToolsVersion = 16.2;
+					};
+					4A936FA2308996D500B1E1C6 = {
+						CreatedOnToolsVersion = 27.1;
 					};
 				};
 			};
@@ -310,6 +350,7 @@
 				4A6C242B307EC6B900AD01B4 /* vitruvio */,
 				4A6C2443307EC70800AD01B4 /* vitruvio Watch App */,
 				4A6C245A307EC94B00AD01B4 /* VitruvioCore */,
+				4A936FA2308996D500B1E1C6 /* VitruvioCoreTests */,
 			);
 		};
 /* End PBXProject section */
@@ -336,6 +377,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4A936FA1308996D500B1E1C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -354,6 +402,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		4A6C2457307EC94B00AD01B4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4A936F9F308996D500B1E1C6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -744,6 +799,47 @@
 			};
 			name = Release;
 		};
+		4A936FA8308996D500B1E1C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCoreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4A936FA9308996D500B1E1C6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.santiago-alvarado.VitruvioCoreTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -779,6 +875,15 @@
 			buildConfigurations = (
 				4A6C2461307EC94C00AD01B4 /* Debug */,
 				4A6C2462307EC94C00AD01B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4A936FA7308996D500B1E1C6 /* Build configuration list for PBXNativeTarget "VitruvioCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A936FA8308996D500B1E1C6 /* Debug */,
+				4A936FA9308996D500B1E1C6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

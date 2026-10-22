@@ -30,9 +30,18 @@ xcodebuild -project vitruvio.xcodeproj -scheme vitruvio -destination 'generic/pl
 xcodebuild -project vitruvio.xcodeproj -scheme "vitruvio Watch App" -destination 'generic/platform=watchOS Simulator' build
 ```
 
+El esquema `vitruvio` también compila el Watch (va embebido): un error en `vitruvio Watch App` rompe el build del iPhone. Para chequear solo el framework: `-scheme VitruvioCore`.
+
 Si el MCP `xcode-tools` está disponible, prefiere `BuildProject`, `RunProject`, `RenderPreview`, `XcodeGrep`, etc.
 
-Los archivos nuevos deben añadirse al target correcto en `project.pbxproj` (usa las herramientas de Xcode MCP o verifica que compile).
+Los targets `vitruvio`, `vitruvio Watch App` y `VitruvioCore` usan carpetas sincronizadas (`PBXFileSystemSynchronizedRootGroup`): un archivo nuevo dentro de esas carpetas entra solo al target, **no** hay que editar `project.pbxproj`. Verifica igual que compile.
+
+### Probar en el simulador
+
+- Con el MCP: `XcodeSwitchScheme` a `vitruvio` y `RunProject` para el iPhone; luego `vitruvio Watch App` (destino "… via <iPhone>") y `RunProject` para el Watch. Para ver el iPhone al frente tras lanzar el Watch: `xcrun simctl launch <udid> com.santiago-alvarado.vitruvio-1` (ese es el bundle id en el simulador, ojo con el `-1`).
+- Hace falta iniciar sesión con Keycloak a mano: los flujos de UI no se pueden automatizar sin credenciales.
+- **No relances la app del Watch en medio de un entrenamiento**: el workout de HealthKit queda huérfano y el siguiente no se puede cerrar. La app lo recupera o descarta al abrir (`recoverActiveWorkout`), pero ensucia las pruebas. Finaliza la sesión antes.
+- `RenderPreview` no corre en simuladores watchOS 11.x (pide ≥ 11.5). Los logs (`xcrun simctl spawn <udid> log show …`) sirven para ver los `HKWorkout*` y el tráfico de Watch Connectivity.
 
 ## Arquitectura y convenciones
 
@@ -41,7 +50,14 @@ Los archivos nuevos deben añadirse al target correcto en `project.pbxproj` (usa
 - **UI**: SwiftUI con modelos `@MainActor @Observable` por pantalla/flujo (p. ej. `ClientTrainingModel`, `ClientAppointmentsModel`) y archivos `*Model.swift` + `*Views.swift` por feature. Las raíces por rol están en `vitruvio/Roots/`.
 - **Sesión/tokens**: `SessionStore` + `KeychainTokenStore`; login en `vitruvio/Auth` (`KeycloakLoginCoordinator`, `AuthSessionModel`).
 - **Companion iPhone ↔ Watch**: se sincroniza con **Watch Connectivity** (`WatchConnectivityBridge`, `CompanionPhoneGateway`), **no** con App Group (`appGroupIdentifier` es legado). El Watch es solo para el rol cliente.
-- **Offline**: `OfflineQueue` y `ActiveTrainingSessionStore` para sesiones de entrenamiento.
+- **Entrenamiento (modelo de ejecución)**: la prescripción (`TrainingSession`, `ExerciseExecution`, `ExerciseSet`) es **solo del staff**; el rol cliente solo la lee (`TrainingService.loadPrescribedSessions` → `PrescribedSession`) y registra lo que hizo en `TrainingSessionCompletion` + `ExerciseCompletion`. Todo pasa por `TrainingExecutionService` (iPhone y gateway del Watch lo comparten); no escribas la prescripción desde código del cliente.
+  - La corrida se escribe en la API recién al completar el primer ejercicio; una sesión sin ejercicios completados no se guarda.
+  - Las series marcadas son progreso local (la API no tiene dónde guardar reps reales).
+  - kcal por ejercicio: medidas (diferencia de energía activa del workout del Watch) o estimadas (`CaloriesBurnRate` × reps prescritas). El origen (`CalorieSource`) vive solo en el dispositivo (`CalorieSourceStore`), no se envía.
+- **Offline**: `FileOfflineQueue.shared` (instancia única) con ids locales que se remapean al id del servidor (la API ignora el `Id` del cliente). Reintenta errores de conectividad/5xx/408/429 y descarta y reporta los demás 4xx sin bloquear la cola. `ActiveTrainingSessionStore.shared` guarda la corrida activa (`ActiveTrainingSessionSnapshot`, con `version`: un formato viejo se descarta al cargar).
+- **Watch y HealthKit**: el workout usa `HKWorkoutActivityType.other` y arranca **en segundo plano**: ninguna pantalla debe esperar a HealthKit (permiso o cierre pueden no responder nunca). `endWorkout` tiene un tope de tiempo. Al guardar, el id de la completion se escribe en `HKMetadataKeyExternalUUID` **solo si ya se conoce el id del servidor**; nunca un id temporal. El iPhone es la fuente de verdad de la corrida; el Watch la refleja por snapshot (`CompanionSyncSnapshot`, `wireVersion`) y le manda acciones (`startSession`, `markSet`, `completeExercise`, `endSession`).
+- **Instrucciones de ejercicio**: `ExerciseMediaLink` clasifica la URL (video / imagen / página). iPhone usa `WKWebView`; el Watch no tiene web view, así que reproduce video con `VideoPlayer`, anima GIF con ImageIO y avisa "solo desde el iPhone" para páginas.
+- **Usuario vs. Keycloak**: los planes y completions se relacionan con el `User.Id`, no con el `sub` de Keycloak (que es el `Tenant.Id`). Usa `GymSessionModel.userId` o `SharedGymContextReader.load()?.userId`.
 - Código y comentarios técnicos en inglés; la documentación de OpenSpec y mensajes de producto están en español. Mantén el estilo del código vecino (densidad de comentarios, nombres, `///` en APIs públicas).
 - Sigue las skills del repo para SwiftUI (`swiftui-expert-skill`), concurrencia (`swift-concurrency-pro`) y watchOS (`watchos-development`) al escribir o revisar código.
 
@@ -50,11 +66,13 @@ Los archivos nuevos deben añadirse al target correcto en `project.pbxproj` (usa
 El trabajo se planifica con OpenSpec (`schema: spec-driven`):
 
 - `openspec/specs/` — specs vigentes por capacidad (auth, onboarding, gym-context, client-training, admin-*, watch-*…).
-- `openspec/changes/` — changes pendientes (`client-membership-profile`, `staff-operations`, `session-date-calories-hk-workout`, …); `archive/` los terminados.
+- `openspec/changes/` — changes pendientes (hoy ninguno); `archive/` los terminados (p. ej. `training-execution-model`, `staff-operations`, `client-membership-profile`).
 - `openspec/APPLY-ORDER.md` — orden de aplicación y estado de cada change. **Márcalo al completar un change.**
 - Skills: `openspec-propose`, `openspec-explore`, `openspec-apply-change`, `openspec-sync-specs`, `openspec-archive-change`.
 
-Antes de implementar una feature, lee su change (`proposal`, `design`, `tasks.md`) y marca las tareas completadas a medida que avanzas. `session-date-calories-hk-workout` está bloqueado hasta que exista la API en el backend.
+Antes de implementar una feature, lee su change (`proposal`, `design`, `tasks.md`) y marca las tareas completadas a medida que avanzas. Los specs vigentes de entrenamiento: `client-training-session`, `iphone-session-history`, `training-calories`, `watch-training-ui`, `watch-healthkit-workout`.
+
+Lo que hace falta del backend se anota en **`BACKEND-REQUESTS.md`** (raíz del repo). Mantenlo al día: agrega ahí cualquier campo o endpoint que la app necesite y el backend todavía no tenga.
 
 ## Backend (`vitruvio-backend-2025`)
 
@@ -77,7 +95,7 @@ OpenAPI solo se expone en Development (`app.MapOpenApi()`). Hay colecciones Post
 - Los ids son `Guid`, salvo `Role`, `Permission` y `Gender` (`int`) y `Tenant` (`string`).
 - Las tablas de unión usan claves compuestas en la ruta: `user-gym-roles/{userId}/{gymId}/{roleId}`, `role-permissions/{roleId}/{permissionId}`, y similares en gym-memberships, appointment-memberships y user-awards.
 - Endpoints especiales: `GET users/by-number/{idNumber}` (DNI) y `GET tenants/by-user/{userId}`.
-- Entidades clave: `User` (+ `IdNumber`, `Tenants`), `Tenant` (`Id` = `sub` de Keycloak, `UserId`), `UserGymRole` (usuario + gym + rol), `Appointment` (`StartDate`/`EndDate` como `DateTimeOffset`), `TrainingSessionCompletion` (`StartDate`/`EndDate` nullables, sin kcal ni id de workout de HealthKit).
+- Entidades clave: `User` (+ `IdNumber`, `Tenants`), `Tenant` (`Id` = `sub` de Keycloak, `UserId`), `UserGymRole` (usuario + gym + rol), `Appointment` (`StartDate`/`EndDate` como `DateTimeOffset`), `TrainingSessionCompletion` (`StartDate`/`EndDate` nullables, sin kcal ni id de workout de HealthKit) y `ExerciseCompletion` (fechas + `CaloriesBurnedInTotal` no nulo, sin reps ni peso). El servidor genera los `Guid` de los `POST` e ignora el que mande el cliente.
 - JSON con `ReferenceHandler.IgnoreCycles`: las respuestas pueden omitir propiedades de navegación ya vistas. Las listas no filtran por gym ni por usuario; hay que filtrar en el cliente.
 
 ### APIs expuestas por área
@@ -141,9 +159,9 @@ Cómo leerlo para el flujo de la app:
 - **No hay autenticación ni autorización**: no existe validación JWT de Keycloak ni `[Authorize]`. El Bearer que manda `AuthenticatedAPIClient` hoy se ignora. Es un prerrequisito pendiente en `APPLY-ORDER.md`.
 - **Roles no sembrados**: solo `Gender` tiene datos semilla (Masculino, Femenino, Otro). Los roles Client/Staff/Admin deben existir en la base para que funcione el contexto de gym.
 - Sin paginación ni filtros por query string.
-- Sin campos para `session-date-calories-hk-workout` (orden por fecha, kcal, id de workout HK): por eso ese change está bloqueado hasta ampliar la API.
+- Faltan campos que la app necesitaría (reps y peso reales por serie, kcal e id de workout HK en la sesión, nombre y orden de sesiones, tablas puente de gym sin endpoints): están pedidos en `BACKEND-REQUESTS.md` y la app los resuelve con rodeos.
 
-Cuando una feature nueva necesite un endpoint o campo que no existe, impleméntalo primero en el backend (controller + servicio + `Inputs`/`Requests` + migración EF) y luego consúmelo desde `VitruvioCore`.
+Cuando una feature nueva necesite un endpoint o campo que no existe, impleméntalo primero en el backend (controller + servicio + `Inputs`/`Requests` + migración EF) y luego consúmelo desde `VitruvioCore`. Si el cambio no te corresponde hacerlo (otro equipo), anótalo en `BACKEND-REQUESTS.md` y resuélvelo en el cliente con un rodeo documentado.
 
 ## Cosas a tener en cuenta
 

@@ -41,31 +41,20 @@ struct ClientTrainingHomeView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(snapshot.planName ?? "Entrenamiento")
-                            Text("\(snapshot.executionCount) ejercicios · \(snapshot.setCount) series")
+                            Text([snapshot.sessionLabel, "\(snapshot.completedExerciseCount) de \(snapshot.executionCount) ejercicios"]
+                                .compactMap { $0 }
+                                .joined(separator: " · "))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Button("Finalizar sesión", role: .destructive) {
+                    Button("Finalizar y guardar") {
                         model.endSession()
                     }
                 }
             }
 
-            if model.pendingOfflineCount > 0 {
-                Section {
-                    Text("\(model.pendingOfflineCount) acción(es) sin conexión pendientes de sincronizar")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
-
-            if let status = model.status {
-                Section { Text(status).font(.caption).foregroundStyle(.secondary) }
-            }
-            if let error = model.lastError {
-                Section { Text(error).font(.caption).foregroundStyle(.red) }
-            }
+            TrainingSyncSections(model: model)
 
             Section("Mis planes") {
                 if model.isLoading && model.plans.isEmpty {
@@ -107,11 +96,13 @@ struct ClientTrainingHomeView: View {
                 } else {
                     Text("Plan no encontrado")
                 }
-            case .session(let id):
-                if model.isActiveSession(id) {
+            case .completion(let id):
+                if model.isActiveCompletion(id) {
                     ActiveTrainingSessionView(model: model)
+                } else if let completion = model.historyByPlan.values.flatMap({ $0 }).first(where: { $0.id == id }) {
+                    PastTrainingSessionView(model: model, completion: completion)
                 } else {
-                    PastTrainingSessionView(model: model, sessionId: id)
+                    Text("Sesión no encontrada")
                 }
             }
         }
@@ -119,7 +110,6 @@ struct ClientTrainingHomeView: View {
             ActiveTrainingSessionView(model: model)
         }
         .refreshable { await model.loadPlans() }
-        .overlay { if model.isWorking { ProgressView() } }
         .task(id: model.network.isOnline) {
             await model.onNetworkTick()
         }
@@ -128,13 +118,46 @@ struct ClientTrainingHomeView: View {
 
 private enum TrainingRoute: Hashable {
     case plan(String)
-    case session(String)
+    case completion(String)
+}
+
+/// Pending-sync notice, status line, errors and records the API rejected for good.
+private struct TrainingSyncSections: View {
+    @Bindable var model: ClientTrainingModel
+
+    var body: some View {
+        if model.pendingOfflineCount > 0 {
+            Section {
+                Text("\(model.pendingOfflineCount) registro(s) sin conexión pendientes de sincronizar")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
+        if !model.discardedMessages.isEmpty {
+            Section {
+                ForEach(Array(model.discardedMessages.enumerated()), id: \.offset) { _, message in
+                    Text(message).font(.caption).foregroundStyle(.red)
+                }
+                Button("Entendido") { model.dismissDiscarded() }
+            }
+        }
+        if let status = model.status {
+            Section { Text(status).font(.caption).foregroundStyle(.secondary) }
+        }
+        if let error = model.lastError {
+            Section { Text(error).font(.caption).foregroundStyle(.red) }
+        }
+    }
 }
 
 struct TrainingPlanDetailView: View {
     @Bindable var model: ClientTrainingModel
     let plan: TrainingPlanDTO
     var onStarted: () -> Void
+
+    private var sessions: [PrescribedSession] { model.sessionsByPlan[plan.id] ?? [] }
+    private var history: [TrainingSessionCompletionDTO] { model.historyByPlan[plan.id] ?? [] }
+    private var hasActiveRun: Bool { model.activeSession.snapshot != nil }
 
     var body: some View {
         List {
@@ -148,104 +171,150 @@ struct TrainingPlanDetailView: View {
                 }
             }
 
-            Section("Sesiones de este plan") {
-                if model.planSessions.isEmpty {
-                    Text("Sin sesiones previas: iniciá una para empezar a registrar.")
+            Section("Sesiones") {
+                if sessions.isEmpty {
+                    if !model.isLoading {
+                        Text("Tu entrenador todavía no cargó sesiones en este plan.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    ForEach(sessions) { session in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(session.label).font(.headline)
+                            Text(session.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Iniciar") {
+                                if model.startSession(plan: plan, session: session) {
+                                    onStarted()
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(hasActiveRun)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    if hasActiveRun {
+                        Text("Finalizá la sesión en curso antes de iniciar otra.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Historial") {
+                if history.isEmpty {
+                    Text("Todavía no entrenaste con este plan.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(model.planSessions) { session in
-                        NavigationLink(value: TrainingRoute.session(session.id)) {
+                    ForEach(history) { completion in
+                        NavigationLink(value: TrainingRoute.completion(completion.id)) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(model.isActiveSession(session.id) ? "Sesión activa" : "Sesión")
-                                    .font(.subheadline)
-                                Text(session.id)
-                                    .font(.caption2)
+                                if let start = completion.startDate {
+                                    Text(start.formatted(date: .abbreviated, time: .shortened))
+                                } else {
+                                    Text("Sesión")
+                                }
+                                Text(model.isActiveCompletion(completion.id)
+                                    ? "En curso"
+                                    : (completion.duration.map(Self.durationLabel) ?? "Sin finalizar"))
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .lineLimit(1)
                             }
                         }
                     }
                 }
             }
 
-            if let error = model.lastError {
-                Section { Text(error).foregroundStyle(.red).font(.caption) }
-            }
+            TrainingSyncSections(model: model)
         }
         .navigationTitle(plan.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Iniciar") {
-                    Task {
-                        if await model.startSession(plan: plan) != nil {
-                            onStarted()
-                        }
-                    }
-                }
-                .disabled(model.isWorking)
-            }
-        }
-        .overlay { if model.isWorking || model.isLoading { ProgressView() } }
+        .overlay { if model.isLoading && sessions.isEmpty && history.isEmpty { ProgressView() } }
         .task { await model.loadPlanDetail(planId: plan.id) }
         .refreshable { await model.loadPlanDetail(planId: plan.id) }
     }
+
+    static func durationLabel(_ seconds: TimeInterval) -> String {
+        Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2))
+    }
 }
 
+/// Read-only detail of a finished run: what was done, when, and how many kcal.
 struct PastTrainingSessionView: View {
     @Bindable var model: ClientTrainingModel
-    let sessionId: String
+    let completion: TrainingSessionCompletionDTO
 
     var body: some View {
         List {
             Section("Sesión") {
-                LabeledContent("ID de sesión", value: sessionId)
+                if let start = completion.startDate {
+                    LabeledContent("Inicio", value: start.formatted(date: .abbreviated, time: .shortened))
+                }
+                LabeledContent(
+                    "Duración",
+                    value: completion.duration.map(TrainingPlanDetailView.durationLabel) ?? "Sin finalizar"
+                )
+                if let detail = model.detail, detail.completion.id == completion.id {
+                    LabeledContent("Calorías", value: kcalLabel(detail.totalKcal))
+                }
             }
             if let error = model.lastError {
                 Section { Text(error).font(.caption).foregroundStyle(.red) }
             }
-            Section("Ejercicios") {
-                if model.isLoading && model.detailExecutions.isEmpty {
-                    ProgressView()
-                } else if model.detailExecutions.isEmpty {
-                    Text("No se registraron ejercicios en esta sesión.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(model.detailExecutions) { execution in
+            Section("Ejercicios completados") {
+                if let detail = model.detail, detail.completion.id == completion.id {
+                    if detail.rows.isEmpty {
+                        Text("No se completó ningún ejercicio en esta sesión.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(detail.rows) { row in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(model.exerciseNameById[execution.exerciseId] ?? execution.exerciseId)
-                                .font(.headline)
-                            ExerciseVideoButton(exercise: model.exercise(id: execution.exerciseId))
-                            let sets = model.detailSetsByExecution[execution.id] ?? []
-                            if sets.isEmpty {
-                                Text("Sin series")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text(sets.map { "\($0.reps) reps" }.joined(separator: " · "))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            Text(row.name).font(.headline)
+                            ExerciseVideoButton(exercise: row.exercise)
+                            HStack {
+                                if let start = row.startDate, let end = row.endDate {
+                                    Text("\(start.formatted(date: .omitted, time: .shortened)) – \(end.formatted(date: .omitted, time: .shortened))")
+                                }
+                                Spacer()
+                                if let kcal = row.kcal {
+                                    Text(kcalLabel(kcal) + (row.source.map { " · \(sourceLabel($0))" } ?? ""))
+                                }
                             }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 2)
                     }
+                } else if model.isLoading {
+                    ProgressView()
                 }
             }
         }
         .navigationTitle("Sesión")
         .navigationBarTitleDisplayMode(.inline)
-        .overlay { if model.isLoading { ProgressView() } }
-        .task { await model.loadSessionDetail(sessionId: sessionId) }
-        .refreshable { await model.loadSessionDetail(sessionId: sessionId) }
+        .task { await model.loadCompletionDetail(completion) }
+        .refreshable { await model.loadCompletionDetail(completion) }
+    }
+}
+
+private func kcalLabel(_ kcal: Double) -> String {
+    "\(kcal.formatted(.number.precision(.fractionLength(0)))) kcal"
+}
+
+private func sourceLabel(_ source: CalorieSource) -> String {
+    switch source {
+    case .healthkit: "medido"
+    case .estimated: "estimado"
     }
 }
 
 struct ActiveTrainingSessionView: View {
     @Bindable var model: ClientTrainingModel
-    @State private var showAddExercise = false
-    @State private var repsText: [String: String] = [:]
+    @Environment(\.dismiss) private var dismiss
     @State private var vitalsRefresh = Date()
 
     private var watchMetrics: CompanionWorkoutMetrics? {
@@ -258,8 +327,13 @@ struct ActiveTrainingSessionView: View {
             if let snapshot = model.activeSession.snapshot {
                 Section("Sesión") {
                     LabeledContent("Plan", value: snapshot.planName ?? "—")
-                    LabeledContent("ID de sesión", value: snapshot.sessionId)
+                    if let label = snapshot.sessionLabel {
+                        LabeledContent("Sesión", value: label)
+                    }
                     LabeledContent("Inicio", value: snapshot.startedAt.formatted(date: .abbreviated, time: .shortened))
+                    if snapshot.totalKcal > 0 {
+                        LabeledContent("Calorías", value: kcalLabel(snapshot.totalKcal))
+                    }
                 }
             } else {
                 Section {
@@ -284,109 +358,27 @@ struct ActiveTrainingSessionView: View {
                 }
             }
 
-            if model.pendingOfflineCount > 0 {
-                Section {
-                    Text("\(model.pendingOfflineCount) acción(es) sin conexión pendientes")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            }
+            TrainingSyncSections(model: model)
 
-            if let status = model.status {
-                Section { Text(status).font(.caption).foregroundStyle(.secondary) }
-            }
-            if let error = model.lastError {
-                Section { Text(error).font(.caption).foregroundStyle(.red) }
-            }
-
-            Section("Ejercicios") {
-                if model.executions.isEmpty {
-                    Text("Agregá un ejercicio para empezar a registrar series.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(model.executions) { execution in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(model.exerciseNameById[execution.exerciseId] ?? execution.exerciseId)
-                            .font(.headline)
-                        ExerciseVideoButton(exercise: model.exercise(id: execution.exerciseId))
-                        let sets = model.setsByExecution[execution.id] ?? []
-                        if sets.isEmpty {
-                            Text("Todavía no hay series")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(sets.map { "\($0.reps) reps" }.joined(separator: " · "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            TextField(
-                                "Repeticiones",
-                                text: Binding(
-                                    get: { repsText[execution.id] ?? "10" },
-                                    set: { repsText[execution.id] = $0 }
-                                )
-                            )
-                            .keyboardType(.numberPad)
-                            .frame(maxWidth: 80)
-                            Button("Registrar serie") {
-                                let reps = Int(repsText[execution.id] ?? "10") ?? 10
-                                Task { await model.logSet(executionId: execution.id, reps: reps) }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(model.isWorking)
-                            Button("Completar") {
-                                Task { await model.completeExercise(executionId: execution.id) }
-                            }
-                            .disabled(model.isWorking)
-                        }
+            if let snapshot = model.activeSession.snapshot {
+                ForEach(snapshot.exercises) { exercise in
+                    Section {
+                        ExerciseProgressRows(model: model, exercise: exercise)
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
         .navigationTitle("Sesión activa")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showAddExercise = true
-                } label: {
-                    Label("Agregar ejercicio", systemImage: "plus")
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Finalizar") {
+                    model.endSession()
+                    dismiss()
                 }
-                .disabled(model.activeSession.snapshot == nil || model.isWorking)
+                .disabled(model.activeSession.snapshot == nil)
             }
         }
-        .sheet(isPresented: $showAddExercise) {
-            NavigationStack {
-                List(model.exercises) { exercise in
-                    Button {
-                        showAddExercise = false
-                        Task { await model.addExercise(exercise) }
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(exercise.name)
-                            if let description = exercise.description, !description.isEmpty {
-                                Text(description)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                .navigationTitle("Agregar ejercicio")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancelar") { showAddExercise = false }
-                    }
-                }
-            }
-            .presentationDetents([.medium, .large])
-        }
-        .overlay { if model.isWorking || model.isLoading { ProgressView() } }
-        .task { await model.loadActiveSession() }
-        .refreshable { await model.loadActiveSession() }
         .task(id: model.network.isOnline) {
             await model.onNetworkTick()
         }
@@ -395,6 +387,47 @@ struct ActiveTrainingSessionView: View {
         }
         .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
             vitalsRefresh = Date()
+        }
+    }
+}
+
+/// One prescribed exercise: tick its sets as they are done, then complete it.
+private struct ExerciseProgressRows: View {
+    @Bindable var model: ClientTrainingModel
+    let exercise: ActiveExerciseProgress
+
+    var body: some View {
+        HStack {
+            Text(exercise.name).font(.headline)
+            Spacer()
+            if exercise.isCompleted {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }
+        }
+        ExerciseVideoButton(exercise: model.exercise(id: exercise.exerciseId))
+        ForEach(Array(exercise.prescribedReps.enumerated()), id: \.offset) { index, reps in
+            Toggle(
+                "Serie \(index + 1) · \(reps) reps",
+                isOn: Binding(
+                    get: { exercise.doneSetIndexes.contains(index) },
+                    set: { model.setSet(executionId: exercise.id, index: index, done: $0) }
+                )
+            )
+            .disabled(exercise.isCompleted)
+        }
+        if exercise.isCompleted {
+            if let kcal = exercise.kcal {
+                LabeledContent(
+                    "Calorías",
+                    value: kcalLabel(kcal) + (exercise.kcalSource.map { " · \(sourceLabel($0))" } ?? "")
+                )
+                .font(.caption)
+            }
+        } else {
+            Button("Completar ejercicio") {
+                model.completeExercise(executionId: exercise.id)
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 }

@@ -7,89 +7,92 @@ import Foundation
 import Observation
 import VitruvioCore
 
+/// One exercise of a finished run, joined with its prescription for display.
+struct CompletedExerciseRow: Identifiable {
+    let id: String
+    let name: String
+    let exercise: ExerciseDTO?
+    let startDate: Date?
+    let endDate: Date?
+    let kcal: Double?
+    /// Known only on the device that recorded the run.
+    let source: CalorieSource?
+}
+
+struct CompletionDetail {
+    let completion: TrainingSessionCompletionDTO
+    let rows: [CompletedExerciseRow]
+
+    var totalKcal: Double { rows.compactMap(\.kcal).reduce(0, +) }
+}
+
+/// Client training: follow a prescribed session, record what was done, browse past runs.
+/// The prescription is read-only here; everything the client writes goes through `TrainingExecutionService`.
 @MainActor
 @Observable
 final class ClientTrainingModel {
     private(set) var plans: [TrainingPlanDTO] = []
-    private(set) var planSessions: [TrainingSessionDTO] = []
-    private(set) var executions: [ExerciseExecutionDTO] = []
-    private(set) var setsByExecution: [String: [ExerciseSetDTO]] = [:]
-    /// History detail (separate from active-session `executions` so browsing doesn't clobber logging).
-    private(set) var detailSessionId: String?
-    private(set) var detailExecutions: [ExerciseExecutionDTO] = []
-    private(set) var detailSetsByExecution: [String: [ExerciseSetDTO]] = [:]
+    private(set) var sessionsByPlan: [String: [PrescribedSession]] = [:]
+    private(set) var historyByPlan: [String: [TrainingSessionCompletionDTO]] = [:]
     private(set) var exercises: [ExerciseDTO] = []
+    private(set) var detail: CompletionDetail?
     private(set) var isLoading = false
-    private(set) var isWorking = false
     private(set) var lastError: String?
     private(set) var status: String?
-    private(set) var pendingOfflineCount = 0
 
     let memberId: String
     let service: TrainingService
+    let execution: TrainingExecutionService
     let activeSession: ActiveTrainingSessionStore
-    let offlineQueue: FileOfflineQueue
     let network: NetworkPathMonitor
 
-    private var lastOnline = true
-    nonisolated(unsafe) private var syncObserver: NSObjectProtocol?
+    private var lastOnline: Bool
 
     init(
         memberId: String,
         api: AuthenticatedAPIClient,
         activeSession: ActiveTrainingSessionStore? = nil,
-        offlineQueue: FileOfflineQueue? = nil,
         network: NetworkPathMonitor? = nil
     ) {
         self.memberId = memberId
-        self.service = TrainingService(api: api)
-        let sessionStore = activeSession ?? ActiveTrainingSessionStore()
-        let queue = offlineQueue ?? FileOfflineQueue()
+        let training = TrainingService(api: api)
+        self.service = training
+        let store = activeSession ?? .shared
+        self.activeSession = store
+        self.execution = TrainingExecutionService(training: training, memberId: memberId, store: store)
         let pathMonitor = network ?? NetworkPathMonitor()
-        self.activeSession = sessionStore
-        self.offlineQueue = queue
         self.network = pathMonitor
-        self.pendingOfflineCount = queue.pendingCount
         self.lastOnline = pathMonitor.isOnline
-        syncObserver = NotificationCenter.default.addObserver(
-            forName: .companionSyncDidUpdate,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.activeSession.reloadFromPersistence()
-                if self.activeSession.activeSessionId != nil {
-                    await self.loadActiveSession()
-                } else {
-                    self.executions = []
-                    self.setsByExecution = [:]
-                }
-            }
-        }
     }
 
-    deinit {
-        if let syncObserver {
-            NotificationCenter.default.removeObserver(syncObserver)
-        }
-    }
-
-    var exerciseNameById: [String: String] {
-        Dictionary(uniqueKeysWithValues: exercises.map { ($0.id, $0.name) })
-    }
+    var pendingOfflineCount: Int { execution.pendingCount }
+    var discardedMessages: [String] { execution.discardedMessages }
 
     func exercise(id: String) -> ExerciseDTO? {
-        exercises.first { $0.id == id }
+        exercises.first { $0.id.caseInsensitiveCompare(id) == .orderedSame }
+    }
+
+    /// The run in `completionId` is the one in progress on this device.
+    func isActiveCompletion(_ completionId: String) -> Bool {
+        activeSession.snapshot?.completionServerId?.caseInsensitiveCompare(completionId) == .orderedSame
+    }
+
+    func dismissDiscarded() {
+        execution.dismissDiscarded()
     }
 
     func onNetworkTick() async {
         let online = network.isOnline
-        if online, (!lastOnline || offlineQueue.pendingCount > 0) {
-            await flushOffline()
+        if online, (!lastOnline || execution.pendingCount > 0) {
+            let result = await execution.flush()
+            if result.sent > 0 {
+                status = "Se sincronizaron \(result.sent) registro(s) sin conexión"
+            }
         }
         lastOnline = online
     }
+
+    // MARK: Reads
 
     func loadPlans() async {
         isLoading = true
@@ -98,19 +101,24 @@ final class ClientTrainingModel {
         do {
             plans = try await service.listPlans(forMemberId: memberId)
             if network.isOnline {
-                await flushOffline()
+                await execution.flush()
             }
         } catch {
             lastError = error.localizedDescription
         }
     }
 
+    /// Prescribed sessions and the client's own history for one plan.
     func loadPlanDetail(planId: String) async {
         isLoading = true
         lastError = nil
         defer { isLoading = false }
         do {
-            planSessions = try await service.listSessions(forPlanId: planId)
+            async let sessionsTask = service.loadPrescribedSessions(planId: planId)
+            async let historyTask = service.listCompletions(memberId: memberId, planId: planId)
+            let (sessions, history) = try await (sessionsTask, historyTask)
+            sessionsByPlan[planId] = sessions
+            historyByPlan[planId] = history
             if exercises.isEmpty {
                 exercises = try await service.listExercises()
             }
@@ -119,203 +127,91 @@ final class ClientTrainingModel {
         }
     }
 
-    func loadSessionDetail(sessionId: String) async {
+    func loadCompletionDetail(_ completion: TrainingSessionCompletionDTO) async {
         isLoading = true
         lastError = nil
+        detail = nil
         defer { isLoading = false }
-        detailSessionId = sessionId
         do {
             if exercises.isEmpty {
                 exercises = try await service.listExercises()
             }
-            _ = try? await service.getSession(id: sessionId)
-            let listed = try await service.listExecutions(forSessionId: sessionId)
-            var sets: [String: [ExerciseSetDTO]] = [:]
-            for execution in listed {
-                sets[execution.id] = try await service.listSets(forExecutionId: execution.id)
+            let completed = try await service.listExerciseCompletions(sessionCompletionId: completion.id)
+            let executions = try await service.listExecutions(withIds: Set(completed.map(\.exerciseExecutionId)))
+            let exerciseIdByExecution = Dictionary(
+                executions.map { ($0.id.lowercased(), $0.exerciseId) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let rows = completed.map { item -> CompletedExerciseRow in
+                let exerciseId = exerciseIdByExecution[item.exerciseExecutionId.lowercased()]
+                let exercise = exerciseId.flatMap(exercise(id:))
+                return CompletedExerciseRow(
+                    id: item.id,
+                    name: exercise?.name ?? "Ejercicio",
+                    exercise: exercise,
+                    startDate: item.startDate,
+                    endDate: item.endDate,
+                    kcal: item.caloriesBurnedInTotal,
+                    source: CalorieSourceStore.source(forCompletionId: item.id)
+                )
             }
-            detailExecutions = listed
-            detailSetsByExecution = sets
+            detail = CompletionDetail(completion: completion, rows: rows)
         } catch {
             lastError = error.localizedDescription
-            detailExecutions = []
-            detailSetsByExecution = [:]
         }
     }
 
-    func isActiveSession(_ sessionId: String) -> Bool {
-        activeSession.activeSessionId == sessionId
-    }
+    // MARK: Active run
 
-    func startSession(plan: TrainingPlanDTO) async -> TrainingSessionDTO? {
-        isWorking = true
+    func startSession(plan: TrainingPlanDTO, session: PrescribedSession) -> Bool {
         lastError = nil
-        defer { isWorking = false }
         do {
-            let session = try await service.createSession(planId: plan.id)
-            activeSession.activate(
-                sessionId: session.id,
-                planId: plan.id,
-                planName: plan.name
-            )
+            try execution.start(planId: plan.id, planName: plan.name, session: session)
             status = "Sesión iniciada"
-            executions = []
-            setsByExecution = [:]
             Task {
                 await CompanionPhoneGateway.shared.publish()
                 await CompanionWatchWorkoutLauncher.openWatchForStrengthTraining()
             }
-            return session
+            return true
         } catch {
             lastError = error.localizedDescription
-            return nil
+            return false
         }
     }
 
-    func loadActiveSession() async {
-        guard let sessionId = activeSession.activeSessionId else {
-            executions = []
-            setsByExecution = [:]
-            return
-        }
-        isLoading = true
+    func setSet(executionId: String, index: Int, done: Bool) {
+        execution.setSet(
+            executionId: executionId,
+            index: index,
+            done: done,
+            energyKcal: execution.currentEnergyReading()
+        )
+        publishCompanion()
+    }
+
+    func completeExercise(executionId: String) {
         lastError = nil
-        defer { isLoading = false }
         do {
-            if exercises.isEmpty {
-                exercises = try await service.listExercises()
-            }
-            executions = try await service.listExecutions(forSessionId: sessionId)
-            var sets: [String: [ExerciseSetDTO]] = [:]
-            var totalSets = 0
-            for execution in executions {
-                let listed = try await service.listSets(forExecutionId: execution.id)
-                sets[execution.id] = listed
-                totalSets += listed.count
-            }
-            setsByExecution = sets
-            activeSession.updateCounts(executionCount: executions.count, setCount: totalSets)
-            pushCompanionTraining()
+            try execution.completeExercise(executionId: executionId, energyKcal: execution.currentEnergyReading())
+            status = "Ejercicio completado"
         } catch {
             lastError = error.localizedDescription
         }
-    }
-
-    func addExercise(_ exercise: ExerciseDTO) async {
-        guard let sessionId = activeSession.activeSessionId else { return }
-        isWorking = true
-        lastError = nil
-        defer { isWorking = false }
-        let request = CreateExerciseExecutionRequest(
-            exerciseId: exercise.id,
-            trainingSessionId: sessionId
-        )
-        do {
-            if network.isOnline {
-                _ = try await service.createExecution(request)
-            } else {
-                try offlineQueue.enqueueEncoded(.createExerciseExecution, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Ejercicio en cola (sin conexión)"
-            }
-            await loadActiveSession()
-        } catch {
-            if shouldQueue(error) {
-                try? offlineQueue.enqueueEncoded(.createExerciseExecution, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Ejercicio en cola (sin conexión)"
-            } else {
-                lastError = error.localizedDescription
-            }
-        }
-    }
-
-    func logSet(executionId: String, reps: Int) async {
-        isWorking = true
-        lastError = nil
-        defer { isWorking = false }
-        let request = CreateExerciseSetRequest(exerciseExecutionId: executionId, reps: reps)
-        do {
-            if network.isOnline {
-                _ = try await service.createSet(request)
-                status = "Serie registrada"
-            } else {
-                try offlineQueue.enqueueEncoded(.createExerciseSet, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Serie en cola (sin conexión)"
-            }
-            await loadActiveSession()
-        } catch {
-            if shouldQueue(error) {
-                try? offlineQueue.enqueueEncoded(.createExerciseSet, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Serie en cola (sin conexión)"
-            } else {
-                lastError = error.localizedDescription
-            }
-        }
-    }
-
-    func completeExercise(executionId: String, startedAt: Date = Date().addingTimeInterval(-300)) async {
-        isWorking = true
-        lastError = nil
-        defer { isWorking = false }
-        let request = CreateExerciseCompletionRequest(
-            exerciseExecutionId: executionId,
-            startDate: startedAt,
-            endDate: Date(),
-            caloriesBurnedInTotal: 0
-        )
-        do {
-            if network.isOnline {
-                _ = try await service.createCompletion(request)
-                status = "Ejercicio completado"
-            } else {
-                try offlineQueue.enqueueEncoded(.createExerciseCompletion, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Finalización en cola (sin conexión)"
-            }
-        } catch {
-            if shouldQueue(error) {
-                try? offlineQueue.enqueueEncoded(.createExerciseCompletion, value: request)
-                pendingOfflineCount = offlineQueue.pendingCount
-                status = "Finalización en cola (sin conexión)"
-            } else {
-                lastError = error.localizedDescription
-            }
-        }
+        publishCompanion()
     }
 
     func endSession() {
-        activeSession.clear()
-        executions = []
-        setsByExecution = [:]
-        status = "Sesión descartada"
-        pushCompanionTraining()
+        lastError = nil
+        do {
+            try execution.end()
+            status = "Sesión finalizada"
+        } catch {
+            lastError = error.localizedDescription
+        }
+        publishCompanion()
     }
 
-    private func pushCompanionTraining() {
+    private func publishCompanion() {
         Task { await CompanionPhoneGateway.shared.publish() }
-    }
-
-    private func flushOffline() async {
-        let count = await offlineQueue.flush(using: service.api)
-        pendingOfflineCount = offlineQueue.pendingCount
-        if count > 0 {
-            status = "Se sincronizaron \(count) acción(es) sin conexión"
-            if activeSession.activeSessionId != nil {
-                await loadActiveSession()
-            }
-        }
-    }
-
-    private func shouldQueue(_ error: Error) -> Bool {
-        if !network.isOnline { return true }
-        if error is URLError { return true }
-        if let apiError = error as? APIClientError {
-            if case .unauthorized = apiError { return false }
-            return true
-        }
-        return false
     }
 }

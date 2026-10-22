@@ -34,7 +34,7 @@ struct WatchTrainingRootView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(snapshot.planName ?? "Entrenamiento")
                                     .font(.headline)
-                                Text("\(snapshot.executionCount) ej. · \(snapshot.setCount) series")
+                                Text("\(snapshot.completedExerciseCount) de \(snapshot.executionCount) ejercicios")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -58,21 +58,15 @@ struct WatchTrainingRootView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(model.plans) { plan in
-                            Button {
-                                Task {
-                                    if await model.startSession(plan: plan) {
-                                        path.append(WatchTrainingRoute.active)
-                                    }
-                                }
-                            } label: {
+                            NavigationLink(value: WatchTrainingRoute.plan(plan.id)) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(plan.name)
-                                    Text("Iniciá desde el iPhone")
+                                    Text(plan.sessions.isEmpty ? "Sin sesiones" : "\(plan.sessions.count) sesiones")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            .disabled(model.isWorking || model.activeSession != nil)
+                            .disabled(model.activeSession != nil)
                         }
                     }
                 }
@@ -82,6 +76,15 @@ struct WatchTrainingRootView: View {
                 switch route {
                 case .active:
                     WatchActiveSessionView(model: model)
+                case .plan(let id):
+                    if let plan = model.plans.first(where: { $0.id == id }) {
+                        WatchPlanSessionsView(model: model, plan: plan) {
+                            path = NavigationPath()
+                            path.append(WatchTrainingRoute.active)
+                        }
+                    } else {
+                        Text("Plan no encontrado")
+                    }
                 }
             }
             .overlay { if model.isWorking { ProgressView() } }
@@ -97,11 +100,52 @@ struct WatchTrainingRootView: View {
 
 private enum WatchTrainingRoute: Hashable {
     case active
+    case plan(String)
+}
+
+/// Prescribed sessions of a plan: pick one to start following it.
+private struct WatchPlanSessionsView: View {
+    @Bindable var model: WatchTrainingModel
+    let plan: CompanionPlanItem
+    var onStarted: () -> Void
+
+    var body: some View {
+        List {
+            if plan.sessions.isEmpty {
+                Text("Tu entrenador todavía no cargó sesiones")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(plan.sessions) { session in
+                Button {
+                    Task {
+                        if await model.startSession(plan: plan, session: session) {
+                            onStarted()
+                        }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(session.label).font(.headline)
+                        Text(session.summary)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                    }
+                }
+                .disabled(model.isWorking || model.activeSession != nil)
+            }
+            if let error = model.lastError {
+                Text(error).font(.caption2).foregroundStyle(.red)
+            }
+        }
+        .navigationTitle(plan.name)
+        .overlay { if model.isWorking { ProgressView() } }
+    }
 }
 
 struct WatchActiveSessionView: View {
     @Bindable var model: WatchTrainingModel
-    @State private var repsByExecution: [String: Int] = [:]
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
@@ -109,7 +153,9 @@ struct WatchActiveSessionView: View {
                 if let snapshot = model.activeSession {
                     Text(snapshot.planName ?? "Entrenamiento")
                         .font(.headline)
-                    Text("\(snapshot.executionCount) ej. · \(snapshot.setCount) series")
+                    Text([snapshot.sessionLabel, "\(snapshot.completedExerciseCount) de \(snapshot.executionCount) ej."]
+                        .compactMap { $0 }
+                        .joined(separator: " · "))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -124,19 +170,39 @@ struct WatchActiveSessionView: View {
             }
 
             Section("Ejercicios") {
-                if model.exercises.isEmpty {
-                    Text("Agregá ejercicios desde el iPhone")
+                if let exercises = model.activeSession?.exercises, !exercises.isEmpty {
+                    ForEach(exercises) { exercise in
+                        exerciseRow(exercise)
+                    }
+                } else {
+                    Text("Sin ejercicios en esta sesión")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
-                ForEach(model.exercises) { execution in
-                    executionRow(execution)
+            }
+
+            let instructions = (model.activeSession?.exercises ?? []).compactMap { exercise in
+                ExerciseMediaLink(exercise.videoUrl).map { (exercise, $0) }
+            }
+            if !instructions.isEmpty {
+                Section("Instrucciones") {
+                    ForEach(instructions, id: \.0.id) { exercise, link in
+                        NavigationLink {
+                            WatchExerciseInstructionsView(name: exercise.name, link: link)
+                        } label: {
+                            Label(exercise.name, systemImage: "play.circle")
+                                .font(.caption)
+                        }
+                    }
                 }
             }
 
             Section {
-                Button("Finalizar sesión", role: .destructive) {
-                    Task { await model.endSession() }
+                Button("Finalizar sesión") {
+                    Task {
+                        // Back to the previous screen once the run is over; stay to show the error otherwise.
+                        if await model.endSession() { dismiss() }
+                    }
                 }
                 .disabled(model.isWorking)
             }
@@ -164,50 +230,44 @@ struct WatchActiveSessionView: View {
     }
 
     @ViewBuilder
-    private func executionRow(_ execution: CompanionExerciseItem) -> some View {
-        let reps = Binding(
-            get: { repsByExecution[execution.id] ?? 10 },
-            set: { repsByExecution[execution.id] = $0 }
-        )
-
+    private func exerciseRow(_ exercise: ActiveExerciseProgress) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(execution.name)
-                .font(.caption)
-                .fontWeight(.semibold)
-            Text(
-                execution.setReps.isEmpty
-                    ? "Sin series"
-                    : execution.setReps.map(String.init).joined(separator: "·")
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-
             HStack {
-                Button { reps.wrappedValue = max(1, reps.wrappedValue - 1) } label: {
-                    Image(systemName: "minus.circle")
-                }
-                .buttonStyle(.plain)
-
-                Text("\(reps.wrappedValue)")
+                Text(exercise.name)
                     .font(.caption)
-                    .monospacedDigit()
-                    .frame(minWidth: 24)
-
-                Button { reps.wrappedValue = min(99, reps.wrappedValue + 1) } label: {
-                    Image(systemName: "plus.circle")
+                    .fontWeight(.semibold)
+                if exercise.isCompleted {
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 }
-                .buttonStyle(.plain)
             }
 
-            Button("Registrar serie") {
-                Task { await model.logSet(executionId: execution.id, reps: reps.wrappedValue) }
+            ForEach(Array(exercise.prescribedReps.enumerated()), id: \.offset) { index, reps in
+                Toggle(
+                    "Serie \(index + 1) · \(reps)",
+                    isOn: Binding(
+                        get: { exercise.doneSetIndexes.contains(index) },
+                        set: { done in
+                            Task { await model.markSet(executionId: exercise.id, index: index, done: done) }
+                        }
+                    )
+                )
+                .font(.caption2)
+                .disabled(exercise.isCompleted || model.isWorking)
             }
-            .disabled(model.isWorking)
 
-            Button("Listo") {
-                Task { await model.completeExercise(executionId: execution.id) }
+            if exercise.isCompleted {
+                if let kcal = exercise.kcal {
+                    Text("\(kcal.formatted(.number.precision(.fractionLength(0)))) kcal")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Button("Listo") {
+                    Task { await model.completeExercise(executionId: exercise.id) }
+                }
+                .disabled(model.isWorking)
             }
-            .disabled(model.isWorking)
         }
         .padding(.vertical, 2)
     }
